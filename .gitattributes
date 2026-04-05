@@ -1,0 +1,10 @@
+# Normalize line endings to LF in the repository, check out as-is on Windows
+* text=auto eol=lf
+
+# Explicitly binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.whl binary

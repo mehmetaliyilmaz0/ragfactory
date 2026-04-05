@@ -1,0 +1,81 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ragfactory"
+version = "0.1.0"
+description = "Generate production-ready RAG pipelines from a single config"
+readme = "README.md"
+license = { text = "Apache-2.0" }
+requires-python = ">=3.11"
+authors = [{ name = "ragfactory contributors" }]
+keywords = ["rag", "llm", "langchain", "llamaindex", "pipeline", "generator"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+dependencies = [
+    "pydantic>=2.7.0,<3.0.0",
+    "pyyaml>=6.0.1",
+    "jinja2>=3.1.4",
+    "typer>=0.12.3",
+    "rich>=13.7.0",          # pretty CLI output
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.2.0",
+    "pytest-cov>=5.0.0",
+    "ruff>=0.4.0",
+    "mypy>=1.10.0",
+    "types-PyYAML>=6.0.12",
+]
+
+[project.scripts]
+ragfactory = "ragfactory.cli.main:app"
+
+[project.urls]
+Homepage = "https://github.com/your-username/ragfactory"
+Documentation = "https://github.com/your-username/ragfactory#readme"
+Issues = "https://github.com/your-username/ragfactory/issues"
+
+# ─── Hatch ────────────────────────────────────────────────────────────────────
+
+[tool.hatch.build.targets.wheel]
+packages = ["ragfactory"]
+
+# ─── Ruff ─────────────────────────────────────────────────────────────────────
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "ANN", "B", "SIM"]
+ignore = [
+    "ANN101",  # missing type annotation for self
+    "ANN102",  # missing type annotation for cls
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["ANN"]  # no type annotations required in tests
+
+# ─── Mypy ─────────────────────────────────────────────────────────────────────
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+ignore_missing_imports = true
+
+# ─── Pytest ───────────────────────────────────────────────────────────────────
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v --tb=short"

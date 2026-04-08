@@ -1,0 +1,9 @@
+# stub: llamaindex pipeline entrypoint
+FRAMEWORK = "{{ framework }}"
+PIPELINE_NAME = "{{ pipeline_name }}"
+{{ stages.chunking }}
+{{ stages.embedding }}
+{{ stages.vectordb }}
+{{ stages.retrieval }}
+{% if stages.reranker is defined and stages.reranker %}{{ stages.reranker }}{% endif %}
+{{ stages.llm }}

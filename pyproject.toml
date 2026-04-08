@@ -50,6 +50,9 @@ Issues = "https://github.com/your-username/ragfactory/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["ragfactory"]
+# Templates must be bundled so that importlib.resources.files("ragfactory") / "templates"
+# resolves correctly when ragfactory is installed from a wheel (not just an editable install).
+include = ["ragfactory/templates/**"]
 
 # ─── Ruff ─────────────────────────────────────────────────────────────────────
 

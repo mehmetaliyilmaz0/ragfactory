@@ -27,6 +27,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum
 
+from ragfactory.core._providers import (
+    PROVIDER_ENV_VAR,
+    infer_context_model_provider,
+    is_probably_local_model,
+)
 from ragfactory.core.compatibility import INCOMPATIBLE, WARNINGS, Severity
 from ragfactory.core.config import (
     RAGPipelineConfig,
@@ -262,8 +267,9 @@ def _check_contextual_chunking(
 ) -> None:
     """
     Cross-field checks for contextual chunking.
-    Emits throughput warning when context_model is an Ollama-style local model,
-    and an info notice when the context model requires an extra API key.
+    Emits a throughput WARNING when context_model is a local Ollama-style model,
+    and an INFO notice when the context model requires an extra API key beyond
+    the pipeline LLM. Provider detection is delegated to _providers.py.
     """
     if config.indexing.chunking.type != "contextual":
         return
@@ -271,56 +277,37 @@ def _check_contextual_chunking(
     chunking = config.indexing.chunking
     context_model: str = chunking.context_model  # type: ignore[union-attr]
 
-    # Ollama-style model names have no provider prefix (e.g. "llama3.2", "mistral")
-    # Cloud model names always contain a dash or slash: "gpt-4o-mini", "claude-haiku-...", etc.
-    is_local_model = (
-        not context_model.startswith("gpt-")
-        and not context_model.startswith("claude-")
-        and not context_model.startswith("text-")
-        and "/" not in context_model
-        and ":" not in context_model
-    )
+    context_provider = infer_context_model_provider(context_model)
 
-    if is_local_model:
-        issues.append(ValidationIssue(
-            severity=ValidationSeverity.WARNING,
-            code="CONTEXTUAL_CHUNKING_SLOW_LOCAL_MODEL",
-            message=(
-                f"context_model='{context_model}' appears to be a local Ollama model. "
-                "Contextual chunking makes one LLM call per chunk — at local inference "
-                "speeds this is ~100x slower than Claude Haiku (API). "
-                "A 10K-chunk corpus may take hours. Consider using an API model."
-            ),
-            component_path="indexing.chunking.context_model",
-            suggestion="Use 'claude-3-haiku-20240307' (cheap) or 'gpt-4o-mini' for context generation.",
-        ))
-        return  # skip the extra-API-key check for local models
+    if context_provider is None:
+        # Unrecognised provider. Check if it looks like a bare local Ollama model.
+        if is_probably_local_model(context_model):
+            issues.append(ValidationIssue(
+                severity=ValidationSeverity.WARNING,
+                code="CONTEXTUAL_CHUNKING_SLOW_LOCAL_MODEL",
+                message=(
+                    f"context_model='{context_model}' appears to be a local Ollama model. "
+                    "Contextual chunking makes one LLM call per chunk — at local inference "
+                    "speeds this is ~100x slower than Claude Haiku (API). "
+                    "A 10K-chunk corpus may take hours. Consider using an API model."
+                ),
+                component_path="indexing.chunking.context_model",
+                suggestion="Use 'claude-3-haiku-20240307' (cheap) or 'gpt-4o-mini' for context generation.",
+            ))
+        # Unknown cloud-like model (contains '/' or ':') — emit nothing.
+        return
 
-    # Detect whether context model requires a different API key than the main LLM
+    # Known cloud provider: check if it needs an extra API key beyond the main LLM.
     llm_type = config.generation.llm.type
-
-    context_provider: str | None = None
-    if context_model.startswith("gpt-") or context_model.startswith("o1"):
-        context_provider = "openai"
-    elif context_model.startswith("claude-"):
-        context_provider = "anthropic"
-    elif context_model.startswith("command"):
-        context_provider = "cohere_llm"
-
     llm_provider_map = {
-        "openai": "openai",
-        "anthropic": "anthropic",
+        "openai":     "openai",
+        "anthropic":  "anthropic",
         "cohere_llm": "cohere_llm",
-        "ollama": "ollama",
+        "ollama":     "ollama",
     }
 
-    if context_provider and context_provider != llm_provider_map.get(llm_type):
-        provider_env: dict[str, str] = {
-            "openai": "OPENAI_API_KEY",
-            "anthropic": "ANTHROPIC_API_KEY",
-            "cohere_llm": "COHERE_API_KEY",
-        }
-        env_var = provider_env.get(context_provider, f"{context_provider.upper()}_API_KEY")
+    if context_provider != llm_provider_map.get(llm_type):
+        env_var = PROVIDER_ENV_VAR.get(context_provider, f"{context_provider.upper()}_API_KEY")
         issues.append(ValidationIssue(
             severity=ValidationSeverity.INFO,
             code="CONTEXTUAL_CHUNKING_EXTRA_API_KEY",
@@ -361,30 +348,6 @@ def _check_flare_logprobs(
             component_path="generation.llm.type",
             suggestion="Switch to OpenAI (gpt-4o / gpt-4o-mini) which reliably supports logprobs.",
         ))
-
-
-def _check_hybrid_search_vectordb(
-    config: RAGPipelineConfig,
-    issues: list[ValidationIssue],
-) -> None:
-    """
-    Hybrid search × vector DB support.
-    INCOMPATIBLE covers ChromaDB and Pinecone (hard errors).
-    This checker is a no-op for now but serves as the extension point for
-    future warnings (e.g. if Pinecone integration improves → downgrade to warning here).
-    """
-    # All current checks are handled by INCOMPATIBLE.
-    # Kept as a dedicated function for forward extensibility.
-
-
-def _check_sentence_window_framework(
-    config: RAGPipelineConfig,
-    issues: list[ValidationIssue],
-) -> None:
-    """
-    Sentence window × framework check.
-    Covered by INCOMPATIBLE (hard error) — this is a no-op extension point.
-    """
 
 
 def _check_multiple_advanced_techniques(
@@ -554,8 +517,6 @@ def validate(
     _check_late_chunking(config, issues)
     _check_contextual_chunking(config, issues)
     _check_flare_logprobs(config, issues)
-    _check_hybrid_search_vectordb(config, issues)
-    _check_sentence_window_framework(config, issues)
     _check_multiple_advanced_techniques(config, issues)
     _check_reranker_top_n(config, issues)
     _check_warnings(config, issues)

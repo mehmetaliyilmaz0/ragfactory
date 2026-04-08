@@ -33,15 +33,20 @@ from __future__ import annotations
 
 import ast
 from dataclasses import dataclass, field
+from importlib.resources import files as _pkg_files
 from pathlib import Path
 
 import jinja2
 
+from ragfactory.core._providers import infer_context_model_provider
 from ragfactory.core.config import RAGPipelineConfig
 from ragfactory.core.versions import get_dependencies
 
-# Default template directory shipped with the package
-_DEFAULT_TEMPLATE_DIR = Path(__file__).parent.parent / "templates"
+# Default template directory shipped with the package.
+# Path(str(...)) converts the importlib Traversable to a real Path, which
+# jinja2.FileSystemLoader requires. This also works in zip-wheel installs
+# where Path(__file__).parent would fail.
+_DEFAULT_TEMPLATE_DIR = Path(str(_pkg_files("ragfactory") / "templates"))
 
 # Vector DBs that require an external service → include docker-compose.yml
 _EXTERNAL_SERVICE_DBS = {"qdrant", "weaviate", "milvus", "pgvector"}
@@ -89,17 +94,22 @@ class GeneratorResult:
     """
     Result of a generate() call.
 
-    .files         — convenience dict: path → content
-    .validation_passed — False if any ast.parse() error occurred
-    .errors        — list of ast.parse error strings (empty on success)
-    .config_yaml   — the input config round-tripped to YAML
+    .generated_files    — canonical list of GeneratedFile (source of truth)
+    .files              — convenience dict[path → content], computed from generated_files
+    .validation_passed  — False if any ast.parse() error occurred
+    .errors             — list of ast.parse error strings (empty on success)
+    .config_yaml        — the input config round-tripped to YAML
     """
 
-    files:             dict[str, str]
     generated_files:   list[GeneratedFile] = field(default_factory=list)
     validation_passed: bool = True
     errors:            list[str] = field(default_factory=list)
     config_yaml:       str = ""
+
+    @property
+    def files(self) -> dict[str, str]:
+        """Convenience dict built from generated_files. Read-only."""
+        return {gf.path: gf.content for gf in self.generated_files}
 
 
 class GeneratorError(Exception):
@@ -127,9 +137,8 @@ class TemplateLoader:
             lstrip_blocks=True,
         )
 
-    def render_stage(self, category: str, type_name: str, ctx: dict) -> str:  # noqa: ANN001
-        """Render stages/<category>/<type_name>.py.j2"""
-        template_path = f"stages/{category}/{type_name}.py.j2"
+    def _render(self, template_path: str, ctx: dict) -> str:  # noqa: ANN001
+        """Load and render a template by path. Single point for all error handling."""
         try:
             return self._env.get_template(template_path).render(ctx)
         except jinja2.TemplateNotFound:
@@ -144,35 +153,17 @@ class TemplateLoader:
                 "This is a bug in ragfactory templates."
             ) from e
 
+    def render_stage(self, category: str, type_name: str, ctx: dict) -> str:  # noqa: ANN001
+        """Render stages/<category>/<type_name>.py.j2"""
+        return self._render(f"stages/{category}/{type_name}.py.j2", ctx)
+
     def render_entrypoint(self, framework: str, name: str, ctx: dict) -> str:  # noqa: ANN001
         """Render entrypoints/<framework>/<name>.py.j2"""
-        template_path = f"entrypoints/{framework}/{name}.py.j2"
-        try:
-            return self._env.get_template(template_path).render(ctx)
-        except jinja2.TemplateNotFound:
-            raise GeneratorError(
-                f"Template not found: {template_path}\n"
-                "This is a bug in ragfactory."
-            ) from None
-        except jinja2.UndefinedError as e:
-            raise GeneratorError(
-                f"Template variable error in {template_path}: {e}"
-            ) from e
+        return self._render(f"entrypoints/{framework}/{name}.py.j2", ctx)
 
     def render_common(self, name: str, ctx: dict) -> str:  # noqa: ANN001
         """Render entrypoints/common/<name>.j2"""
-        template_path = f"entrypoints/common/{name}.j2"
-        try:
-            return self._env.get_template(template_path).render(ctx)
-        except jinja2.TemplateNotFound:
-            raise GeneratorError(
-                f"Template not found: {template_path}\n"
-                "This is a bug in ragfactory."
-            ) from None
-        except jinja2.UndefinedError as e:
-            raise GeneratorError(
-                f"Template variable error in {template_path}: {e}"
-            ) from e
+        return self._render(f"entrypoints/common/{name}.j2", ctx)
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -207,22 +198,18 @@ def _collect_required_env_vars(config: RAGPipelineConfig) -> list[tuple[str, str
 
     # Embedding
     _add(config.indexing.embedding.type)
-    # OpenAI is also needed for openai embedding (already covered) and openai LLM
     # Vector DB
     _add(config.indexing.vector_db.type)
-    # LLM
+    # LLM — OpenAI LLM shares OPENAI_API_KEY with openai embedding;
+    # _add deduplicates via `seen`, so no special case needed.
     _add(config.generation.llm.type)
-    # OpenAI LLM shares key with openai embedding — _add deduplicates
-    if config.generation.llm.type == "openai":
-        _add("openai")
 
-    # Contextual chunking may need extra key
+    # Contextual chunking may need an extra API key for the context model
     if config.indexing.chunking.type == "contextual":
         ctx_model: str = config.indexing.chunking.context_model  # type: ignore[union-attr]
-        if ctx_model.startswith("claude-"):
-            _add("anthropic")
-        elif ctx_model.startswith("gpt-"):
-            _add("openai")
+        provider = infer_context_model_provider(ctx_model)
+        if provider is not None:
+            _add(provider)
 
     # CRAG web search
     adv = config.generation.advanced
@@ -240,13 +227,10 @@ def _collect_required_env_vars(config: RAGPipelineConfig) -> list[tuple[str, str
 
 
 def _framework_str(config: RAGPipelineConfig) -> str:
-    """
-    Return framework as a plain str path segment.
-
-    Python 3.11+ changed str(StrEnum.VALUE) to return "Class.VALUE" instead of
-    "value". Since Framework is a str-subclass enum, we must use .value explicitly
-    when building template paths.
-    """
+    """Return framework as a plain str path segment for template path construction."""
+    # use_enum_values=True on StrictModel guarantees config.framework is already
+    # a plain str at runtime. The hasattr/.value branch is defensive-only and will
+    # not fire under normal operation, but guards against future config schema changes.
     fw = config.framework
     return fw.value if hasattr(fw, "value") else str(fw)  # type: ignore[union-attr]
 
@@ -254,12 +238,21 @@ def _framework_str(config: RAGPipelineConfig) -> str:
 def _render_stages(
     config: RAGPipelineConfig,
     loader: TemplateLoader,
+    fw: str,
 ) -> dict[str, str]:
     """
     Render all stage templates and return a dict of stage_name → rendered_code.
     Stages are rendered in data-flow order.
+
+    Template context contract:
+      - Per-stage templates (stages/<cat>/<type>.py.j2) should read the
+        unpacked sub-object keys ("chunking", "embedding", "vector_db",
+        "retrieval", "reranker", "llm") and NOT reach into `config`.
+      - Entrypoint templates (pipeline.py.j2, ingestion.py.j2) read `config`
+        for cross-cutting concerns (name, framework, dependencies).
+      - `config` is passed to stages only for rare cross-cutting reads and
+        should be used sparingly — prefer the specific sub-object key.
     """
-    fw = _framework_str(config)
     base_ctx: dict = {
         "config":        config,
         "framework":     fw,
@@ -352,7 +345,6 @@ def generate(
         .validation_passed is False if any .py file has a syntax error.
     """
     loader = TemplateLoader(template_dir)
-    files: dict[str, str] = {}
     generated_files: list[GeneratedFile] = []
     all_errors: list[str] = []
     fw = _framework_str(config)
@@ -367,7 +359,7 @@ def generate(
 
     try:
         # ── Render stages ────────────────────────────────────────────────────
-        stages = _render_stages(config, loader)
+        stages = _render_stages(config, loader, fw)
 
         # ── Entrypoint context ───────────────────────────────────────────────
         entrypoint_ctx: dict = {
@@ -403,7 +395,6 @@ def generate(
     except GeneratorError as e:
         # Template / engine error — return immediately with error state
         return GeneratorResult(
-            files={},
             generated_files=[],
             validation_passed=False,
             errors=[str(e)],
@@ -428,17 +419,12 @@ def generate(
     for path, content in py_files:
         errors = _validate_python(content, path)
         all_errors.extend(errors)
-        gf = GeneratedFile(path=path, content=content, is_python=True)
-        generated_files.append(gf)
-        files[path] = content
+        generated_files.append(GeneratedFile(path=path, content=content, is_python=True))
 
     for path, content in non_py_files:
-        gf = GeneratedFile(path=path, content=content, is_python=False)
-        generated_files.append(gf)
-        files[path] = content
+        generated_files.append(GeneratedFile(path=path, content=content, is_python=False))
 
     return GeneratorResult(
-        files=files,
         generated_files=generated_files,
         validation_passed=len(all_errors) == 0,
         errors=all_errors,

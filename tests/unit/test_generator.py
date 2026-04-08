@@ -22,7 +22,6 @@ Coverage:
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 import pytest
@@ -184,15 +183,11 @@ class TestAstValidation:
 
 
 class TestPureFunction:
-    def test_no_files_written_to_cwd(self, tmp_path: Path) -> None:
-        original_cwd = os.getcwd()
-        os.chdir(tmp_path)
-        try:
-            _gen()
-            written = list(tmp_path.iterdir())
-            assert written == [], f"Generator wrote files to disk: {written}"
-        finally:
-            os.chdir(original_cwd)
+    def test_no_files_written_to_cwd(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.chdir(tmp_path)
+        _gen()
+        written = list(tmp_path.iterdir())
+        assert written == [], f"Generator wrote files to disk: {written}"
 
     def test_called_twice_same_result(self) -> None:
         cfg = _cfg()
@@ -485,3 +480,67 @@ class TestTemplateLoader:
         loader = TemplateLoader(STUB_TEMPLATE_DIR)
         with pytest.raises(GeneratorError, match="Template not found"):
             loader.render_common("nonexistent.j2", {})
+
+
+# ─── 14. Stub template coverage meta-test (C2) ───────────────────────────────
+
+
+import typing
+from ragfactory.core import config as _cfg_mod
+
+
+def _union_type_literals(union_annotation: object) -> list[str]:
+    """Extract the `type` field default from every member of a discriminated union.
+
+    Config unions are Annotated[Union[A, B, ...], FieldInfo(...)].
+    get_args returns (Union[A, B, ...], FieldInfo); we need to peel one more
+    layer to reach the concrete model classes.
+    """
+    # Peel Annotated wrapper: first arg is the Union
+    outer = typing.get_args(union_annotation)
+    if not outer:
+        return []
+    union = outer[0]  # Union[A, B, ...]
+    result = []
+    for member in typing.get_args(union):
+        if hasattr(member, "model_fields") and "type" in member.model_fields:
+            result.append(member.model_fields["type"].default)
+    return result
+
+
+_STUB_STAGE_UNIONS = [
+    (_cfg_mod.ChunkingConfig,  "stages/chunking"),
+    (_cfg_mod.EmbeddingConfig, "stages/embedding"),
+    (_cfg_mod.VectorDBConfig,  "stages/vectordb"),
+    (_cfg_mod.RetrievalConfig, "stages/retrieval"),
+    (_cfg_mod.RerankerConfig,  "stages/reranker"),
+    (_cfg_mod.LLMConfig,       "stages/llm"),
+]
+
+_stub_params = [
+    (subdir, type_literal)
+    for union, subdir in _STUB_STAGE_UNIONS
+    for type_literal in _union_type_literals(union)
+]
+
+
+class TestStubTemplateCoverage:
+    """Meta-test: every config type literal must have a corresponding stub .j2 file.
+
+    Prevents the silent failure mode where a new component is added to config.py
+    but no stub template is added, causing generator tests to silently fail
+    (or worse: produce misleading GeneratorError messages in unrelated tests).
+    """
+
+    @pytest.mark.parametrize(
+        "subdir,type_literal",
+        _stub_params,
+        ids=[f"{s}/{t}" for s, t in _stub_params],
+    )
+    def test_stub_exists(self, subdir: str, type_literal: str) -> None:
+        stub = STUB_TEMPLATE_DIR / subdir / f"{type_literal}.py.j2"
+        assert stub.exists(), (
+            f"Missing stub template: {stub}\n"
+            f"Add a minimal stub at:\n"
+            f"  tests/fixtures/stub_templates/{subdir}/{type_literal}.py.j2"
+        )

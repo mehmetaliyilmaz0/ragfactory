@@ -24,13 +24,19 @@ from ragfactory.core.config import (
     BGEM3EmbeddingConfig,
     ChromaDBConfig,
     CohereLLMConfig,
+    CohereEmbeddingConfig,
     CohereRerankerConfig,
     ColBERTRerankerConfig,
     ContextualChunkingConfig,
     CRAGConfig,
+    CrossEncoderRerankerConfig,
     DenseRetrievalConfig,
+    EvaluationConfig,
+    FixedChunkingConfig,
     FLAREConfig,
+    FlashRankRerankerConfig,
     Framework,
+    GeminiEmbeddingConfig,
     GenerationConfig,
     HybridRRFConfig,
     HybridWeightedConfig,
@@ -40,9 +46,13 @@ from ragfactory.core.config import (
     JinaEmbeddingConfig,
     LateChunkingConfig,
     MilvusConfig,
+    NomicEmbeddingConfig,
     OllamaLLMConfig,
     OpenAIEmbeddingConfig,
     OpenAILLMConfig,
+    PageLevelChunkingConfig,
+    ParserType,
+    PgVectorConfig,
     PineconeConfig,
     PostRetrievalConfig,
     PreRetrievalConfig,
@@ -50,14 +60,20 @@ from ragfactory.core.config import (
     QdrantConfig,
     RAGPipelineConfig,
     RecursiveChunkingConfig,
+    RoutingConfig,
+    RouteDefinition,
+    SemanticChunkingConfig,
     SentenceWindowConfig,
+    SmallToBigConfig,
     VoyageEmbeddingConfig,
+    WeaviateConfig,
 )
 from ragfactory.core.validator import (
     CostEstimate,
     ValidationIssue,
     ValidationResult,
     ValidationSeverity,
+    _is_active,
     validate,
 )
 
@@ -696,3 +712,388 @@ class TestIssueStructure:
         for w in result.warnings:
             assert isinstance(w, ValidationIssue)
             assert w.severity == ValidationSeverity.WARNING
+
+
+# ─── 12. _is_active direct unit tests (M1) ───────────────────────────────────
+
+
+class TestIsActive:
+    """Direct isolation tests for the _is_active dot-path resolver.
+
+    Each path pattern in the function has at least one True and one False test
+    so a regression in _is_active fails loudly here rather than silently
+    missing a validator check downstream.
+    """
+
+    # ── framework ─────────────────────────────────────────────────────────────
+
+    def test_framework_langchain_true(self) -> None:
+        assert _is_active(_cfg(framework=Framework.LANGCHAIN), "framework.langchain") is True
+
+    def test_framework_langchain_false_when_llamaindex(self) -> None:
+        assert _is_active(_cfg(framework=Framework.LLAMAINDEX), "framework.langchain") is False
+
+    def test_framework_llamaindex_true(self) -> None:
+        assert _is_active(_cfg(framework=Framework.LLAMAINDEX), "framework.llamaindex") is True
+
+    def test_framework_llamaindex_false_when_langchain(self) -> None:
+        assert _is_active(_cfg(framework=Framework.LANGCHAIN), "framework.llamaindex") is False
+
+    # ── indexing.chunking ─────────────────────────────────────────────────────
+
+    def _chunking_cfg(self, chunking: object) -> RAGPipelineConfig:
+        return _cfg(indexing=IndexingConfig(
+            chunking=chunking,  # type: ignore[arg-type]
+            embedding=OpenAIEmbeddingConfig(),
+            vector_db=QdrantConfig(),
+        ))
+
+    def test_chunking_fixed(self) -> None:
+        c = self._chunking_cfg(FixedChunkingConfig())
+        assert _is_active(c, "indexing.chunking.fixed") is True
+        assert _is_active(c, "indexing.chunking.recursive") is False
+
+    def test_chunking_recursive(self) -> None:
+        c = self._chunking_cfg(RecursiveChunkingConfig())
+        assert _is_active(c, "indexing.chunking.recursive") is True
+        assert _is_active(c, "indexing.chunking.fixed") is False
+
+    def test_chunking_semantic(self) -> None:
+        c = self._chunking_cfg(SemanticChunkingConfig())
+        assert _is_active(c, "indexing.chunking.semantic") is True
+
+    def test_chunking_contextual(self) -> None:
+        c = self._chunking_cfg(ContextualChunkingConfig())
+        assert _is_active(c, "indexing.chunking.contextual") is True
+
+    def test_chunking_late(self) -> None:
+        c = self._chunking_cfg(LateChunkingConfig())
+        assert _is_active(c, "indexing.chunking.late") is True
+
+    def test_chunking_page_level(self) -> None:
+        c = self._chunking_cfg(PageLevelChunkingConfig())
+        assert _is_active(c, "indexing.chunking.page_level") is True
+
+    def test_chunking_proposition(self) -> None:
+        c = self._chunking_cfg(PropositionChunkingConfig())
+        assert _is_active(c, "indexing.chunking.proposition") is True
+
+    # ── indexing.embedding ────────────────────────────────────────────────────
+
+    def _emb_cfg(self, embedding: object) -> RAGPipelineConfig:
+        return _cfg(indexing=IndexingConfig(
+            embedding=embedding,  # type: ignore[arg-type]
+            vector_db=QdrantConfig(),
+        ))
+
+    def test_embedding_openai(self) -> None:
+        c = self._emb_cfg(OpenAIEmbeddingConfig())
+        assert _is_active(c, "indexing.embedding.openai") is True
+        assert _is_active(c, "indexing.embedding.jina") is False
+
+    def test_embedding_cohere(self) -> None:
+        assert _is_active(self._emb_cfg(CohereEmbeddingConfig()), "indexing.embedding.cohere") is True
+
+    def test_embedding_voyage(self) -> None:
+        assert _is_active(self._emb_cfg(VoyageEmbeddingConfig()), "indexing.embedding.voyage") is True
+
+    def test_embedding_gemini(self) -> None:
+        assert _is_active(self._emb_cfg(GeminiEmbeddingConfig()), "indexing.embedding.gemini") is True
+
+    def test_embedding_bge_m3(self) -> None:
+        assert _is_active(self._emb_cfg(BGEM3EmbeddingConfig()), "indexing.embedding.bge_m3") is True
+
+    def test_embedding_nomic(self) -> None:
+        assert _is_active(self._emb_cfg(NomicEmbeddingConfig()), "indexing.embedding.nomic") is True
+
+    def test_embedding_jina(self) -> None:
+        assert _is_active(self._emb_cfg(JinaEmbeddingConfig()), "indexing.embedding.jina") is True
+
+    # ── indexing.vector_db ────────────────────────────────────────────────────
+
+    def _vdb_cfg(self, vector_db: object) -> RAGPipelineConfig:
+        return _cfg(indexing=IndexingConfig(
+            embedding=OpenAIEmbeddingConfig(),
+            vector_db=vector_db,  # type: ignore[arg-type]
+        ))
+
+    def test_vectordb_chromadb(self) -> None:
+        c = self._vdb_cfg(ChromaDBConfig())
+        assert _is_active(c, "indexing.vector_db.chromadb") is True
+        assert _is_active(c, "indexing.vector_db.qdrant") is False
+
+    def test_vectordb_qdrant(self) -> None:
+        assert _is_active(self._vdb_cfg(QdrantConfig()), "indexing.vector_db.qdrant") is True
+
+    def test_vectordb_pinecone(self) -> None:
+        assert _is_active(self._vdb_cfg(PineconeConfig()), "indexing.vector_db.pinecone") is True
+
+    def test_vectordb_weaviate(self) -> None:
+        assert _is_active(self._vdb_cfg(WeaviateConfig()), "indexing.vector_db.weaviate") is True
+
+    def test_vectordb_milvus(self) -> None:
+        assert _is_active(self._vdb_cfg(MilvusConfig()), "indexing.vector_db.milvus") is True
+
+    def test_vectordb_pgvector(self) -> None:
+        assert _is_active(self._vdb_cfg(PgVectorConfig()), "indexing.vector_db.pgvector") is True
+
+    # ── retrieval ─────────────────────────────────────────────────────────────
+
+    def test_retrieval_dense(self) -> None:
+        c = _cfg(retrieval=DenseRetrievalConfig())
+        assert _is_active(c, "retrieval.dense") is True
+        assert _is_active(c, "retrieval.hybrid_rrf") is False
+
+    def test_retrieval_hybrid_rrf(self) -> None:
+        assert _is_active(_cfg(retrieval=HybridRRFConfig()), "retrieval.hybrid_rrf") is True
+
+    def test_retrieval_hybrid_weighted(self) -> None:
+        assert _is_active(_cfg(retrieval=HybridWeightedConfig()), "retrieval.hybrid_weighted") is True
+
+    def test_retrieval_small_to_big(self) -> None:
+        assert _is_active(_cfg(retrieval=SmallToBigConfig()), "retrieval.small_to_big") is True
+
+    def test_retrieval_sentence_window(self) -> None:
+        assert _is_active(_cfg(retrieval=SentenceWindowConfig()), "retrieval.sentence_window") is True
+
+    # ── pre_retrieval ─────────────────────────────────────────────────────────
+
+    def test_pre_retrieval_hyde_enabled(self) -> None:
+        c = _cfg(pre_retrieval=PreRetrievalConfig(hyde=HyDEConfig(enabled=True)))
+        assert _is_active(c, "pre_retrieval.hyde") is True
+
+    def test_pre_retrieval_hyde_disabled(self) -> None:
+        c = _cfg(pre_retrieval=PreRetrievalConfig(hyde=HyDEConfig(enabled=False)))
+        assert _is_active(c, "pre_retrieval.hyde") is False
+
+    def test_pre_retrieval_hyde_none(self) -> None:
+        c = _cfg(pre_retrieval=PreRetrievalConfig(hyde=None))
+        assert _is_active(c, "pre_retrieval.hyde") is False
+
+    def test_pre_retrieval_query_rewriting_enabled(self) -> None:
+        from ragfactory.core.config import QueryRewritingConfig
+        c = _cfg(pre_retrieval=PreRetrievalConfig(query_rewriting=QueryRewritingConfig(enabled=True)))
+        assert _is_active(c, "pre_retrieval.query_rewriting") is True
+
+    def test_pre_retrieval_query_rewriting_none(self) -> None:
+        c = _cfg(pre_retrieval=PreRetrievalConfig(query_rewriting=None))
+        assert _is_active(c, "pre_retrieval.query_rewriting") is False
+
+    def test_pre_retrieval_routing_enabled(self) -> None:
+        c = _cfg(pre_retrieval=PreRetrievalConfig(
+            routing=RoutingConfig(
+                enabled=True,
+                routes=[
+                    RouteDefinition(name="a", description="route a"),
+                    RouteDefinition(name="b", description="route b"),
+                ],
+            )
+        ))
+        assert _is_active(c, "pre_retrieval.routing") is True
+
+    def test_pre_retrieval_routing_none(self) -> None:
+        c = _cfg(pre_retrieval=PreRetrievalConfig(routing=None))
+        assert _is_active(c, "pre_retrieval.routing") is False
+
+    # ── post_retrieval.reranker ───────────────────────────────────────────────
+
+    def test_reranker_cohere(self) -> None:
+        c = _cfg(post_retrieval=PostRetrievalConfig(reranker=CohereRerankerConfig()))
+        assert _is_active(c, "post_retrieval.reranker.cohere") is True
+        assert _is_active(c, "post_retrieval.reranker.colbert") is False
+
+    def test_reranker_cross_encoder(self) -> None:
+        c = _cfg(post_retrieval=PostRetrievalConfig(reranker=CrossEncoderRerankerConfig()))
+        assert _is_active(c, "post_retrieval.reranker.cross_encoder") is True
+
+    def test_reranker_colbert(self) -> None:
+        c = _cfg(post_retrieval=PostRetrievalConfig(reranker=ColBERTRerankerConfig()))
+        assert _is_active(c, "post_retrieval.reranker.colbert") is True
+
+    def test_reranker_flashrank(self) -> None:
+        c = _cfg(post_retrieval=PostRetrievalConfig(reranker=FlashRankRerankerConfig()))
+        assert _is_active(c, "post_retrieval.reranker.flashrank") is True
+
+    def test_reranker_none(self) -> None:
+        c = _cfg(post_retrieval=PostRetrievalConfig(reranker=None))
+        assert _is_active(c, "post_retrieval.reranker.cohere") is False
+
+    # ── generation.llm ────────────────────────────────────────────────────────
+
+    def test_llm_openai(self) -> None:
+        c = _cfg(generation=GenerationConfig(llm=OpenAILLMConfig()))
+        assert _is_active(c, "generation.llm.openai") is True
+        assert _is_active(c, "generation.llm.anthropic") is False
+
+    def test_llm_anthropic(self) -> None:
+        c = _cfg(generation=GenerationConfig(llm=AnthropicLLMConfig()))
+        assert _is_active(c, "generation.llm.anthropic") is True
+
+    def test_llm_cohere_llm(self) -> None:
+        c = _cfg(generation=GenerationConfig(llm=CohereLLMConfig()))
+        assert _is_active(c, "generation.llm.cohere_llm") is True
+
+    def test_llm_ollama(self) -> None:
+        c = _cfg(generation=GenerationConfig(llm=OllamaLLMConfig()))
+        assert _is_active(c, "generation.llm.ollama") is True
+
+    # ── generation.advanced ───────────────────────────────────────────────────
+
+    def test_advanced_flare_enabled(self) -> None:
+        c = _cfg(generation=GenerationConfig(
+            llm=OpenAILLMConfig(),
+            advanced=AdvancedGenerationConfig(flare=FLAREConfig(enabled=True)),
+        ))
+        assert _is_active(c, "generation.advanced.flare") is True
+
+    def test_advanced_flare_disabled(self) -> None:
+        c = _cfg(generation=GenerationConfig(
+            llm=OpenAILLMConfig(),
+            advanced=AdvancedGenerationConfig(flare=FLAREConfig(enabled=False)),
+        ))
+        assert _is_active(c, "generation.advanced.flare") is False
+
+    def test_advanced_flare_none_advanced(self) -> None:
+        c = _cfg(generation=GenerationConfig(llm=OpenAILLMConfig(), advanced=None))
+        assert _is_active(c, "generation.advanced.flare") is False
+
+    def test_advanced_crag_enabled(self) -> None:
+        c = _cfg(generation=GenerationConfig(
+            llm=OpenAILLMConfig(),
+            advanced=AdvancedGenerationConfig(crag=CRAGConfig(enabled=True)),
+        ))
+        assert _is_active(c, "generation.advanced.crag") is True
+
+    def test_advanced_agentic_enabled(self) -> None:
+        c = _cfg(generation=GenerationConfig(
+            llm=OpenAILLMConfig(),
+            advanced=AdvancedGenerationConfig(agentic=AgenticConfig(enabled=True)),
+        ))
+        assert _is_active(c, "generation.advanced.agentic") is True
+
+    def test_advanced_crag_web_search_fallback_true(self) -> None:
+        c = _cfg(generation=GenerationConfig(
+            llm=OpenAILLMConfig(),
+            advanced=AdvancedGenerationConfig(
+                crag=CRAGConfig(enabled=True, web_search_fallback=True),
+            ),
+        ))
+        assert _is_active(c, "generation.advanced.crag.web_search_fallback") is True
+
+    def test_advanced_crag_web_search_fallback_false(self) -> None:
+        c = _cfg(generation=GenerationConfig(
+            llm=OpenAILLMConfig(),
+            advanced=AdvancedGenerationConfig(
+                crag=CRAGConfig(enabled=True, web_search_fallback=False),
+            ),
+        ))
+        assert _is_active(c, "generation.advanced.crag.web_search_fallback") is False
+
+    # ── evaluation ────────────────────────────────────────────────────────────
+
+    def test_evaluation_present(self) -> None:
+        c = _cfg(evaluation=EvaluationConfig())
+        assert _is_active(c, "evaluation") is True
+
+    def test_evaluation_none(self) -> None:
+        c = _cfg(evaluation=None)
+        assert _is_active(c, "evaluation") is False
+
+    # ── ingestion.parser ──────────────────────────────────────────────────────
+
+    def test_ingestion_parser_default(self) -> None:
+        c = _cfg(ingestion=IngestionConfig(parser=ParserType.DEFAULT))
+        assert _is_active(c, "ingestion.parser.default") is True
+        assert _is_active(c, "ingestion.parser.unstructured") is False
+
+    def test_ingestion_parser_unstructured(self) -> None:
+        c = _cfg(ingestion=IngestionConfig(parser=ParserType.UNSTRUCTURED))
+        assert _is_active(c, "ingestion.parser.unstructured") is True
+
+    def test_ingestion_parser_azure_doc_intelligence(self) -> None:
+        c = _cfg(ingestion=IngestionConfig(parser=ParserType.AZURE_DOC_INTELLIGENCE))
+        assert _is_active(c, "ingestion.parser.azure_doc_intelligence") is True
+
+    def test_ingestion_parser_docling(self) -> None:
+        c = _cfg(ingestion=IngestionConfig(parser=ParserType.DOCLING))
+        assert _is_active(c, "ingestion.parser.docling") is True
+
+    # ── unknown path ──────────────────────────────────────────────────────────
+
+    def test_unknown_path_returns_false(self) -> None:
+        assert _is_active(_cfg(), "does.not.exist") is False
+
+    def test_partial_known_prefix_returns_false(self) -> None:
+        assert _is_active(_cfg(), "indexing.chunking") is False
+
+
+# ─── 13. Contextual chunking cloud model regression (M3) ─────────────────────
+
+
+class TestContextualChunkingCloudModels:
+    """Regression tests for the M3 fix — cloud models must NOT trigger the
+    local-model slow-inference warning, and MUST trigger the extra-API-key INFO
+    when their provider differs from the main LLM.
+    """
+
+    def _ctx_cfg(self, context_model: str, llm: object = None) -> RAGPipelineConfig:
+        return _cfg(
+            indexing=IndexingConfig(
+                chunking=ContextualChunkingConfig(context_model=context_model),
+                embedding=OpenAIEmbeddingConfig(),
+                vector_db=QdrantConfig(),
+            ),
+            generation=GenerationConfig(llm=llm or OpenAILLMConfig()),  # type: ignore[arg-type]
+        )
+
+    def test_gemini_does_not_trigger_local_warning(self) -> None:
+        result = validate(self._ctx_cfg("gemini-1.5-flash"))
+        assert not _has_warning(result, "CONTEXTUAL_CHUNKING_SLOW_LOCAL_MODEL")
+
+    def test_gemini_triggers_extra_api_key_info(self) -> None:
+        # context=gemini, LLM=openai → different provider → needs GOOGLE_API_KEY
+        result = validate(self._ctx_cfg("gemini-1.5-flash"))
+        assert _has_info(result, "CONTEXTUAL_CHUNKING_EXTRA_API_KEY")
+        info = next(i for i in result.issues if i.code == "CONTEXTUAL_CHUNKING_EXTRA_API_KEY")
+        assert "GOOGLE_API_KEY" in info.message
+
+    def test_command_r_plus_triggers_extra_api_key_info(self) -> None:
+        # context=cohere command-r-plus, LLM=openai → needs COHERE_API_KEY
+        result = validate(self._ctx_cfg("command-r-plus"))
+        assert not _has_warning(result, "CONTEXTUAL_CHUNKING_SLOW_LOCAL_MODEL")
+        assert _has_info(result, "CONTEXTUAL_CHUNKING_EXTRA_API_KEY")
+        info = next(i for i in result.issues if i.code == "CONTEXTUAL_CHUNKING_EXTRA_API_KEY")
+        assert "COHERE_API_KEY" in info.message
+
+    def test_mistral_large_triggers_extra_api_key_info(self) -> None:
+        result = validate(self._ctx_cfg("mistral-large"))
+        assert not _has_warning(result, "CONTEXTUAL_CHUNKING_SLOW_LOCAL_MODEL")
+        assert _has_info(result, "CONTEXTUAL_CHUNKING_EXTRA_API_KEY")
+        info = next(i for i in result.issues if i.code == "CONTEXTUAL_CHUNKING_EXTRA_API_KEY")
+        assert "MISTRAL_API_KEY" in info.message
+
+    def test_llama32_still_triggers_local_warning(self) -> None:
+        # Regression: bare Ollama model names must still emit the slow-local warning
+        result = validate(self._ctx_cfg("llama3.2"))
+        assert _has_warning(result, "CONTEXTUAL_CHUNKING_SLOW_LOCAL_MODEL")
+        assert not _has_info(result, "CONTEXTUAL_CHUNKING_EXTRA_API_KEY")
+
+    def test_gpt4o_mini_same_provider_no_issues(self) -> None:
+        # context=gpt-4o-mini, LLM=openai → same provider → no extra key needed
+        result = validate(self._ctx_cfg("gpt-4o-mini", llm=OpenAILLMConfig()))
+        assert not _has_warning(result, "CONTEXTUAL_CHUNKING_SLOW_LOCAL_MODEL")
+        assert not _has_info(result, "CONTEXTUAL_CHUNKING_EXTRA_API_KEY")
+
+    def test_claude_haiku_with_openai_llm_triggers_extra_key(self) -> None:
+        result = validate(self._ctx_cfg("claude-3-haiku-20240307", llm=OpenAILLMConfig()))
+        assert _has_info(result, "CONTEXTUAL_CHUNKING_EXTRA_API_KEY")
+        info = next(i for i in result.issues if i.code == "CONTEXTUAL_CHUNKING_EXTRA_API_KEY")
+        assert "ANTHROPIC_API_KEY" in info.message
+
+    def test_o1_model_recognised_as_openai(self) -> None:
+        # o1 prefix is a known OpenAI model family
+        result = validate(self._ctx_cfg("o1-preview", llm=AnthropicLLMConfig()))
+        assert not _has_warning(result, "CONTEXTUAL_CHUNKING_SLOW_LOCAL_MODEL")
+        assert _has_info(result, "CONTEXTUAL_CHUNKING_EXTRA_API_KEY")
+        info = next(i for i in result.issues if i.code == "CONTEXTUAL_CHUNKING_EXTRA_API_KEY")
+        assert "OPENAI_API_KEY" in info.message

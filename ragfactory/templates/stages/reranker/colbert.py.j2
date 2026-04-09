@@ -1,0 +1,32 @@
+from ragatouille import RAGPretrainedModel
+from typing import Any
+
+
+def build_reranker(retriever: Any) -> Any:
+{% if framework == "langchain" %}
+    # ColBERT via RAGatouille — wraps retriever with late-interaction reranking
+    rag = RAGPretrainedModel.from_pretrained("{{ reranker.model }}")
+    # RAGatouille does not implement the LangChain BaseRetriever interface directly.
+    # Use as a post-retrieval step: retriever returns docs, rag.rerank() re-scores them.
+    class _ColBERTRetriever:
+        def __init__(self, base_retriever, rag_model, top_n):
+            self._base = base_retriever
+            self._rag  = rag_model
+            self._top_n = top_n
+
+        def invoke(self, query):
+            docs = self._base.invoke(query)
+            texts = [d.page_content for d in docs]
+            if not texts:
+                return docs
+            results = self._rag.rerank(query=query, documents=texts, k=self._top_n)
+            ranked_texts = {r["content"]: r["score"] for r in results}
+            return sorted(docs, key=lambda d: ranked_texts.get(d.page_content, 0), reverse=True)[:self._top_n]
+
+    return _ColBERTRetriever(retriever, rag, {{ reranker.top_n }})
+{% else %}
+    # ColBERT via RAGatouille — used as a postprocessor
+    rag = RAGPretrainedModel.from_pretrained("{{ reranker.model }}")
+    # Return rag model — pipeline.py uses it as a node postprocessor
+    return rag
+{% endif %}

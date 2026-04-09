@@ -1,0 +1,33 @@
+# ── Retrieval: Hybrid RRF (BM25 + Dense, Reciprocal Rank Fusion) ──────────
+{% if framework == "langchain" %}
+from langchain.retrievers import EnsembleRetriever
+from langchain_community.retrievers import BM25Retriever
+{% elif framework == "llamaindex" %}
+from llama_index.core.retrievers import QueryFusionRetriever, VectorIndexRetriever
+from llama_index.core import VectorStoreIndex, StorageContext, Settings
+{% endif %}
+
+def build_retrieval(vectorstore: Any) -> Any:
+{% if framework == "langchain" %}
+    # Dense retriever
+    dense_retriever = vectorstore.as_retriever(search_kwargs={"k": {{ retrieval.top_k }}})
+    # BM25 sparse retriever — requires docs to be passed at ingestion time
+    # See ingestion.py for how to populate bm25_retriever
+    bm25_retriever  = BM25Retriever.from_texts([], k={{ retrieval.top_k }})
+    return EnsembleRetriever(
+        retrievers=[bm25_retriever, dense_retriever],
+        weights=[0.5, 0.5],
+        # RRF constant k={{ retrieval.rrf_k }}
+    )
+{% elif framework == "llamaindex" %}
+    storage_context = StorageContext.from_defaults(vector_store=vectorstore)
+    index = VectorStoreIndex.from_vector_store(vectorstore, storage_context=storage_context)
+    dense_retriever = VectorIndexRetriever(index=index, similarity_top_k={{ retrieval.top_k }})
+    return QueryFusionRetriever(
+        [dense_retriever],
+        llm=Settings.llm,
+        num_queries=1,
+        mode="reciprocal_rerank",
+        similarity_top_k={{ retrieval.top_k }},
+    )
+{% endif %}

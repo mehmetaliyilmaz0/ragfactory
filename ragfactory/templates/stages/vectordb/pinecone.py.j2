@@ -1,0 +1,20 @@
+{% if framework == "langchain" %}
+import os
+from langchain_pinecone import PineconeVectorStore
+from pinecone import Pinecone
+{% elif framework == "llamaindex" %}
+import os
+from llama_index.vector_stores.pinecone import PineconeVectorStore
+from pinecone import Pinecone
+{% endif %}
+
+def build_vectordb(embedder: Any) -> Any:
+{% if framework == "langchain" %}
+    pc = Pinecone(api_key=os.environ["PINECONE_API_KEY"])
+    index = pc.Index("{{ vector_db.index_name }}")
+    return PineconeVectorStore(index=index, embedding=embedder)
+{% elif framework == "llamaindex" %}
+    pc = Pinecone(api_key=os.environ["PINECONE_API_KEY"])
+    pinecone_index = pc.Index("{{ vector_db.index_name }}")
+    return PineconeVectorStore(pinecone_index=pinecone_index)
+{% endif %}

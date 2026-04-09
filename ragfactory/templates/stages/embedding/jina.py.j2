@@ -1,0 +1,17 @@
+# Jina AI Embeddings — jina-embeddings-v3 / jina-embeddings-v2-base-en
+import os
+{% if framework == "langchain" %}
+from langchain_community.embeddings import JinaEmbeddings
+{% elif framework == "llamaindex" %}
+from llama_index.embeddings.jinaai import JinaEmbedding
+{% endif %}
+
+def build_embedding() -> Any:
+{% if framework == "langchain" %}
+{% if is_late_chunking %}
+    # late_chunking=True activates Jina's late chunking — requires jina-embeddings-v3
+{% endif %}
+    return JinaEmbeddings(jina_api_key=os.environ["JINA_API_KEY"], model_name={{ embedding.model | tojson_py }}{% if is_late_chunking %}, task="retrieval.passage"{% endif %})
+{% elif framework == "llamaindex" %}
+    return JinaEmbedding(api_key=os.environ["JINA_API_KEY"], model={{ embedding.model | tojson_py }}{% if is_late_chunking %}, task="retrieval.passage"{% endif %})
+{% endif %}

@@ -1,0 +1,11 @@
+# ── Chunking: Proposition Chunking ───────────────────────────────────────────
+# Dense-X Retrieval (Chen et al., 2023) — decompose paragraphs into atomic propositions
+
+
+def build_chunking() -> Any:
+    # PropositionChunking: the actual extraction runs during ingestion.
+    # The pipeline reads extraction_model from this config dict.
+    return {
+        "extraction_model": {{ chunking.extraction_model | tojson_py }},
+        "type": "proposition",
+    }

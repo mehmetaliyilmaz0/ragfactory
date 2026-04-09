@@ -1,0 +1,23 @@
+{% if framework == "langchain" %}
+import os
+import chromadb
+from langchain_chroma import Chroma
+{% elif framework == "llamaindex" %}
+import os
+import chromadb
+from llama_index.vector_stores.chroma import ChromaVectorStore
+{% endif %}
+
+def build_vectordb(embedder: Any) -> Any:
+{% if framework == "langchain" %}
+    chroma_client = chromadb.PersistentClient(path="{{ vector_db.persist_directory }}")
+    return Chroma(
+        client=chroma_client,
+        collection_name="{{ vector_db.collection_name }}",
+        embedding_function=embedder,
+    )
+{% elif framework == "llamaindex" %}
+    chroma_client = chromadb.PersistentClient(path="{{ vector_db.persist_directory }}")
+    chroma_collection = chroma_client.get_or_create_collection("{{ vector_db.collection_name }}")
+    return ChromaVectorStore(chroma_collection=chroma_collection)
+{% endif %}

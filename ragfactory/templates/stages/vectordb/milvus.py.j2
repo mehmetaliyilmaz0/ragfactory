@@ -1,0 +1,22 @@
+{% if framework == "langchain" %}
+import os
+from langchain_milvus import Milvus
+{% elif framework == "llamaindex" %}
+import os
+from llama_index.vector_stores.milvus import MilvusVectorStore
+{% endif %}
+
+def build_vectordb(embedder: Any) -> Any:
+{% if framework == "langchain" %}
+    return Milvus(
+        embedding_function=embedder,
+        collection_name="{{ vector_db.collection_name }}",
+        connection_args={"uri": os.environ.get("MILVUS_URI", "{{ vector_db.uri }}")},
+    )
+{% elif framework == "llamaindex" %}
+    return MilvusVectorStore(
+        uri=os.environ.get("MILVUS_URI", "{{ vector_db.uri }}"),
+        collection_name="{{ vector_db.collection_name }}",
+        dim=1536,
+    )
+{% endif %}

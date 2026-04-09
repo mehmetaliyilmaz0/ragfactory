@@ -1,0 +1,13 @@
+# OpenAI Embeddings — text-embedding-3-small / 3-large / ada-002
+{% if framework == "langchain" %}
+from langchain_openai import OpenAIEmbeddings
+{% elif framework == "llamaindex" %}
+from llama_index.embeddings.openai import OpenAIEmbedding
+{% endif %}
+
+def build_embedding() -> Any:
+{% if framework == "langchain" %}
+    return OpenAIEmbeddings(model={{ embedding.model | tojson_py }}{% if embedding.dimensions is not none %}, dimensions={{ embedding.dimensions }}{% endif %})
+{% elif framework == "llamaindex" %}
+    return OpenAIEmbedding(model={{ embedding.model | tojson_py }}{% if embedding.dimensions is not none %}, embed_batch_size=10, dimensions={{ embedding.dimensions }}{% endif %})
+{% endif %}

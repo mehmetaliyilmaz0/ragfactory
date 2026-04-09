@@ -1,0 +1,21 @@
+# ── Chunking: Page-Level ──────────────────────────────────────────────────────
+{% if framework == "langchain" %}
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+{% elif framework == "llamaindex" %}
+from llama_index.core.node_parser import SentenceSplitter
+{% endif %}
+
+
+def build_chunking() -> Any:
+{% if framework == "langchain" %}
+    # Page-level approximation for LangChain — use PyPDFLoader for true page boundaries
+    return RecursiveCharacterTextSplitter(
+        chunk_size=10000,
+        chunk_overlap=0,
+    )
+{% elif framework == "llamaindex" %}
+    return SentenceSplitter(
+        chunk_size=10000,
+        chunk_overlap=0,
+    )
+{% endif %}

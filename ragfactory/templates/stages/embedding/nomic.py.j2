@@ -1,0 +1,13 @@
+# Nomic Embeddings — nomic-embed-text-v1.5 / nomic-embed-text-v1
+{% if framework == "langchain" %}
+from langchain_nomic import NomicEmbeddings
+{% elif framework == "llamaindex" %}
+from llama_index.embeddings.nomic import NomicEmbedding
+{% endif %}
+
+def build_embedding() -> Any:
+{% if framework == "langchain" %}
+    return NomicEmbeddings(model={{ embedding.model | tojson_py }}, dimensionality={{ embedding.dimensionality }})
+{% elif framework == "llamaindex" %}
+    return NomicEmbedding(model_name={{ embedding.model | tojson_py }}, dimensionality={{ embedding.dimensionality }})
+{% endif %}

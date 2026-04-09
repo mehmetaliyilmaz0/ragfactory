@@ -1,0 +1,22 @@
+{% if framework == "langchain" %}
+import os
+from langchain_postgres import PGVector
+{% elif framework == "llamaindex" %}
+import os
+from llama_index.vector_stores.postgres import PGVectorStore
+{% endif %}
+
+def build_vectordb(embedder: Any) -> Any:
+{% if framework == "langchain" %}
+    return PGVector(
+        embeddings=embedder,
+        collection_name="{{ vector_db.collection_name }}",
+        connection=os.environ["PGVECTOR_CONNECTION_STRING"],
+    )
+{% elif framework == "llamaindex" %}
+    return PGVectorStore.from_params(
+        connection_string=os.environ["PGVECTOR_CONNECTION_STRING"],
+        table_name="{{ vector_db.collection_name }}",
+        embed_dim=1536,
+    )
+{% endif %}

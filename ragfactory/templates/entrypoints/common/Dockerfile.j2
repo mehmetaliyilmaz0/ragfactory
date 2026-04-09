@@ -1,0 +1,14 @@
+FROM python:{{ python_version }}-slim
+
+WORKDIR /app
+
+# Install dependencies first (layer caching)
+COPY pyproject.toml ./
+RUN pip install --no-cache-dir .
+
+# Copy pipeline code
+COPY *.py ./
+
+EXPOSE 8000
+
+CMD ["python", "pipeline.py"]

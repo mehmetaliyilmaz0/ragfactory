@@ -32,6 +32,7 @@ Template layout (relative to ragfactory/templates/):
 from __future__ import annotations
 
 import ast
+import json
 from dataclasses import dataclass, field
 from importlib.resources import files as _pkg_files
 from pathlib import Path
@@ -136,6 +137,11 @@ class TemplateLoader:
             trim_blocks=True,
             lstrip_blocks=True,
         )
+        # tojson_py: serialise a Python value to a JSON literal suitable for
+        # embedding inside generated .py files. Unlike Jinja2's built-in tojson,
+        # this filter does NOT escape HTML entities (<, >, &, '), so the output
+        # is a clean Python string literal rather than HTML-safe JSON.
+        self._env.filters["tojson_py"] = lambda v: json.dumps(v, ensure_ascii=False)
 
     def _render(self, template_path: str, ctx: dict) -> str:  # noqa: ANN001
         """Load and render a template by path. Single point for all error handling."""

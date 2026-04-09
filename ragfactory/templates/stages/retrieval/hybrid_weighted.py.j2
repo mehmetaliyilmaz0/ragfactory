@@ -1,0 +1,30 @@
+# ── Retrieval: Hybrid Weighted (BM25 + Dense, linear combination) ─────────
+{% if framework == "langchain" %}
+from langchain.retrievers import EnsembleRetriever
+from langchain_community.retrievers import BM25Retriever
+{% elif framework == "llamaindex" %}
+from llama_index.core.retrievers import QueryFusionRetriever, VectorIndexRetriever
+from llama_index.core import VectorStoreIndex, StorageContext, Settings
+{% endif %}
+
+def build_retrieval(vectorstore: Any) -> Any:
+{% if framework == "langchain" %}
+    dense_retriever = vectorstore.as_retriever(search_kwargs={"k": {{ retrieval.top_k }}})
+    bm25_retriever  = BM25Retriever.from_texts([], k={{ retrieval.top_k }})
+    # alpha={{ retrieval.alpha }}: dense weight; sparse weight = {{ 1.0 - retrieval.alpha }}
+    return EnsembleRetriever(
+        retrievers=[bm25_retriever, dense_retriever],
+        weights=[{{ 1.0 - retrieval.alpha }}, {{ retrieval.alpha }}],
+    )
+{% elif framework == "llamaindex" %}
+    storage_context = StorageContext.from_defaults(vector_store=vectorstore)
+    index = VectorStoreIndex.from_vector_store(vectorstore, storage_context=storage_context)
+    dense_retriever = VectorIndexRetriever(index=index, similarity_top_k={{ retrieval.top_k }})
+    return QueryFusionRetriever(
+        [dense_retriever],
+        llm=Settings.llm,
+        num_queries=1,
+        mode="simple",
+        similarity_top_k={{ retrieval.top_k }},
+    )
+{% endif %}

@@ -1,0 +1,13 @@
+# Cohere Embeddings — embed-v4.0 / embed-english-v3.0 / embed-multilingual-v3.0
+{% if framework == "langchain" %}
+from langchain_cohere import CohereEmbeddings
+{% elif framework == "llamaindex" %}
+from llama_index.embeddings.cohere import CohereEmbedding
+{% endif %}
+
+def build_embedding() -> Any:
+{% if framework == "langchain" %}
+    return CohereEmbeddings(model={{ embedding.model | tojson_py }}, input_type={{ embedding.input_type | tojson_py }})
+{% elif framework == "llamaindex" %}
+    return CohereEmbedding(model_name={{ embedding.model | tojson_py }}, input_type={{ embedding.input_type | tojson_py }})
+{% endif %}

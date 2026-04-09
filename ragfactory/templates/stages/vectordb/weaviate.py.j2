@@ -1,0 +1,23 @@
+{% if framework == "langchain" %}
+import os
+from langchain_weaviate.vectorstores import WeaviateVectorStore
+import weaviate
+{% elif framework == "llamaindex" %}
+import os
+from llama_index.vector_stores.weaviate import WeaviateVectorStore
+import weaviate
+{% endif %}
+
+def build_vectordb(embedder: Any) -> Any:
+{% if framework == "langchain" %}
+    weaviate_client = weaviate.connect_to_local(host="{{ vector_db.url }}")
+    return WeaviateVectorStore(
+        client=weaviate_client,
+        index_name="{{ vector_db.class_name }}",
+        text_key="text",
+        embedding=embedder,
+    )
+{% elif framework == "llamaindex" %}
+    weaviate_client = weaviate.connect_to_local()
+    return WeaviateVectorStore(weaviate_client=weaviate_client, index_name="{{ vector_db.class_name }}")
+{% endif %}

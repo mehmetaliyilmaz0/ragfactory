@@ -1,0 +1,14 @@
+# Voyage AI Embeddings — voyage-3-large / voyage-3 / voyage-3-lite / voyage-code-3
+import os
+{% if framework == "langchain" %}
+from langchain_community.embeddings import VoyageAIEmbeddings
+{% elif framework == "llamaindex" %}
+from llama_index.embeddings.voyageai import VoyageEmbedding
+{% endif %}
+
+def build_embedding() -> Any:
+{% if framework == "langchain" %}
+    return VoyageAIEmbeddings(voyage_api_key=os.environ["VOYAGE_API_KEY"], model={{ embedding.model | tojson_py }})
+{% elif framework == "llamaindex" %}
+    return VoyageEmbedding(model_name={{ embedding.model | tojson_py }}, voyage_api_key=os.environ["VOYAGE_API_KEY"])
+{% endif %}

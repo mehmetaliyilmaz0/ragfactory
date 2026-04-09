@@ -1,0 +1,26 @@
+{% if framework == "langchain" %}
+import os
+from langchain_openai import ChatOpenAI
+{% else %}
+import os
+from llama_index.llms.openai import OpenAI
+{% endif %}
+from typing import Any
+
+
+def build_llm() -> Any:
+{% if framework == "langchain" %}
+    return ChatOpenAI(
+        model="{{ llm.model }}",
+        temperature={{ llm.temperature }},
+        max_tokens={{ llm.max_tokens }},
+        api_key=os.environ["OPENAI_API_KEY"],
+    )
+{% else %}
+    return OpenAI(
+        model="{{ llm.model }}",
+        temperature={{ llm.temperature }},
+        max_tokens={{ llm.max_tokens }},
+        api_key=os.environ["OPENAI_API_KEY"],
+    )
+{% endif %}

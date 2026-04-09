@@ -1,0 +1,41 @@
+# ── Retrieval: Sentence Window ────────────────────────────────────────────
+{% if framework == "langchain" %}
+from langchain.retrievers import ParentDocumentRetriever
+from langchain.storage import InMemoryStore
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+{% elif framework == "llamaindex" %}
+from llama_index.core.node_parser import SentenceWindowNodeParser
+from llama_index.core.postprocessor import MetadataReplacementPostProcessor
+from llama_index.core import VectorStoreIndex, StorageContext, Settings
+from llama_index.core.retrievers import VectorIndexRetriever
+{% endif %}
+
+def build_retrieval(vectorstore: Any) -> Any:
+{% if framework == "langchain" %}
+    # LangChain approximation of LlamaIndex SentenceWindowNodeParser.
+    # Retrieves small sentence-sized chunks for precision; returns larger
+    # context windows to the LLM.
+
+    # child: sentence-sized chunks (~50 tokens)
+    child_splitter  = RecursiveCharacterTextSplitter(chunk_size=50, chunk_overlap=0)
+    # parent: window_size sentences worth of context (~{{ retrieval.window_size * 200 }} tokens)
+    parent_splitter = RecursiveCharacterTextSplitter(chunk_size={{ retrieval.window_size * 200 }}, chunk_overlap=50)
+    return ParentDocumentRetriever(
+        vectorstore=vectorstore,
+        docstore=InMemoryStore(),
+        child_splitter=child_splitter,
+        parent_splitter=parent_splitter,
+        search_kwargs={"k": {{ retrieval.top_k }}},
+    )
+{% elif framework == "llamaindex" %}
+    # SentenceWindowNodeParser + MetadataReplacementPostProcessor is the
+    # LlamaIndex native sentence window retrieval pattern.
+    node_parser = SentenceWindowNodeParser.from_defaults(
+        window_size={{ retrieval.window_size }},
+        window_metadata_key="window",
+        original_text_metadata_key="original_text",
+    )
+    storage_context = StorageContext.from_defaults(vector_store=vectorstore)
+    index = VectorStoreIndex.from_vector_store(vectorstore, storage_context=storage_context)
+    return VectorIndexRetriever(index=index, similarity_top_k={{ retrieval.top_k }})
+{% endif %}

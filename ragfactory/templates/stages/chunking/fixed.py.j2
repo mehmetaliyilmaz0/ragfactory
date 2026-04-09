@@ -1,0 +1,20 @@
+# ── Chunking: CharacterTextSplitter / TokenTextSplitter ──────────────────────
+{% if framework == "langchain" %}
+from langchain_text_splitters import CharacterTextSplitter
+{% elif framework == "llamaindex" %}
+from llama_index.core.node_parser import TokenTextSplitter
+{% endif %}
+
+
+def build_chunking() -> Any:
+{% if framework == "langchain" %}
+    return CharacterTextSplitter(
+        chunk_size={{ chunking.chunk_size }},
+        chunk_overlap={{ chunking.chunk_overlap }},
+    )
+{% elif framework == "llamaindex" %}
+    return TokenTextSplitter(
+        chunk_size={{ chunking.chunk_size }},
+        chunk_overlap={{ chunking.chunk_overlap }},
+    )
+{% endif %}

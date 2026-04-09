@@ -1,0 +1,13 @@
+# Google Gemini Embeddings — text-embedding-004 / embedding-001
+{% if framework == "langchain" %}
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
+{% elif framework == "llamaindex" %}
+from llama_index.embeddings.gemini import GeminiEmbedding
+{% endif %}
+
+def build_embedding() -> Any:
+{% if framework == "langchain" %}
+    return GoogleGenerativeAIEmbeddings(model={{ embedding.model | tojson_py }})
+{% elif framework == "llamaindex" %}
+    return GeminiEmbedding(model_name={{ embedding.model | tojson_py }})
+{% endif %}

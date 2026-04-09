@@ -1,0 +1,21 @@
+# ── Chunking: Late Chunking ───────────────────────────────────────────────────
+# Late Chunking (Jina AI, 2024) — chunking is performed at the embedding stage
+{% if framework == "langchain" %}
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+{% elif framework == "llamaindex" %}
+from llama_index.core.node_parser import SentenceSplitter
+{% endif %}
+
+
+def build_chunking() -> Any:
+{% if framework == "langchain" %}
+    return RecursiveCharacterTextSplitter(
+        chunk_size={{ chunking.chunk_size }},
+        chunk_overlap=0,
+    )
+{% elif framework == "llamaindex" %}
+    return SentenceSplitter(
+        chunk_size={{ chunking.chunk_size }},
+        chunk_overlap=0,
+    )
+{% endif %}

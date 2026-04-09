@@ -1,0 +1,21 @@
+# ── Chunking: RecursiveCharacterTextSplitter / SentenceSplitter ──────────────
+{% if framework == "langchain" %}
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+{% elif framework == "llamaindex" %}
+from llama_index.core.node_parser import SentenceSplitter
+{% endif %}
+
+
+def build_chunking() -> Any:
+{% if framework == "langchain" %}
+    return RecursiveCharacterTextSplitter(
+        chunk_size={{ chunking.chunk_size }},
+        chunk_overlap={{ chunking.chunk_overlap }},
+        separators={{ chunking.separators | tojson_py }},
+    )
+{% elif framework == "llamaindex" %}
+    return SentenceSplitter(
+        chunk_size={{ chunking.chunk_size }},
+        chunk_overlap={{ chunking.chunk_overlap }},
+    )
+{% endif %}

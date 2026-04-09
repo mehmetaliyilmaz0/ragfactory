@@ -1,0 +1,26 @@
+{% if framework == "langchain" %}
+import os
+from langchain_anthropic import ChatAnthropic
+{% else %}
+import os
+from llama_index.llms.anthropic import Anthropic
+{% endif %}
+from typing import Any
+
+
+def build_llm() -> Any:
+{% if framework == "langchain" %}
+    return ChatAnthropic(
+        model="{{ llm.model }}",
+        temperature={{ llm.temperature }},
+        max_tokens={{ llm.max_tokens }},
+        api_key=os.environ["ANTHROPIC_API_KEY"],
+    )
+{% else %}
+    return Anthropic(
+        model="{{ llm.model }}",
+        temperature={{ llm.temperature }},
+        max_tokens={{ llm.max_tokens }},
+        api_key=os.environ["ANTHROPIC_API_KEY"],
+    )
+{% endif %}

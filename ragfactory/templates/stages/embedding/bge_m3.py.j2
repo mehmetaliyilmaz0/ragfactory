@@ -1,0 +1,5 @@
+# BGE-M3 (BAAI, 2024) — dense + sparse + multi-vector, self-hosted
+from FlagEmbedding import BGEM3FlagModel
+
+def build_embedding() -> Any:
+    return BGEM3FlagModel(model_name_or_path="BAAI/bge-m3", use_fp16={{ embedding.use_fp16 }}, batch_size={{ embedding.batch_size }})

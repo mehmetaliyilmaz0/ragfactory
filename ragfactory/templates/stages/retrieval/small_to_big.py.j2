@@ -1,0 +1,32 @@
+# ── Retrieval: Small-to-Big (Parent Document Retrieval) ───────────────────
+{% if framework == "langchain" %}
+from langchain.retrievers import ParentDocumentRetriever
+from langchain.storage import InMemoryStore
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+{% elif framework == "llamaindex" %}
+from llama_index.core.retrievers import AutoMergingRetriever
+from llama_index.core.node_parser import HierarchicalNodeParser
+from llama_index.core import VectorStoreIndex, StorageContext, Settings
+{% endif %}
+
+def build_retrieval(vectorstore: Any) -> Any:
+{% if framework == "langchain" %}
+    child_splitter  = RecursiveCharacterTextSplitter(chunk_size={{ retrieval.child_chunk_size }})
+    parent_splitter = RecursiveCharacterTextSplitter(chunk_size={{ retrieval.parent_chunk_size }})
+    return ParentDocumentRetriever(
+        vectorstore=vectorstore,
+        docstore=InMemoryStore(),
+        child_splitter=child_splitter,
+        parent_splitter=parent_splitter,
+        search_kwargs={"k": {{ retrieval.top_k }}},
+    )
+{% elif framework == "llamaindex" %}
+    # HierarchicalNodeParser creates parent-child node hierarchy
+    node_parser = HierarchicalNodeParser.from_defaults(
+        chunk_sizes=[{{ retrieval.parent_chunk_size }}, {{ retrieval.child_chunk_size }}]
+    )
+    storage_context = StorageContext.from_defaults(vector_store=vectorstore)
+    index = VectorStoreIndex.from_vector_store(vectorstore, storage_context=storage_context)
+    base_retriever = index.as_retriever(similarity_top_k={{ retrieval.top_k }})
+    return AutoMergingRetriever(base_retriever, storage_context=storage_context)
+{% endif %}

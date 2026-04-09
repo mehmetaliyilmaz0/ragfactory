@@ -1,0 +1,23 @@
+{% if framework == "langchain" %}
+from langchain_ollama import ChatOllama
+{% else %}
+from llama_index.llms.ollama import Ollama
+{% endif %}
+from typing import Any
+
+
+def build_llm() -> Any:
+{% if framework == "langchain" %}
+    return ChatOllama(
+        model="{{ llm.model }}",
+        base_url="{{ llm.base_url }}",
+        temperature={{ llm.temperature }},
+    )
+{% else %}
+    return Ollama(
+        model="{{ llm.model }}",
+        base_url="{{ llm.base_url }}",
+        temperature={{ llm.temperature }},
+        request_timeout=120.0,
+    )
+{% endif %}

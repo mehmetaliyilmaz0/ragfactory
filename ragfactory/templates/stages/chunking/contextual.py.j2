@@ -1,0 +1,16 @@
+# ── Chunking: Contextual Retrieval ───────────────────────────────────────────
+# Contextual Retrieval (Anthropic, 2024) — prepends LLM-generated context to each chunk
+from anthropic import Anthropic
+
+
+def build_chunking() -> Any:
+    # Returns a config dict — the pipeline constructs the contextual splitter at ingestion time.
+    # chunk_size / chunk_overlap are passed to the underlying text splitter (RecursiveCharacterTextSplitter
+    # for LangChain, SentenceSplitter for LlamaIndex). The Anthropic client is initialised from
+    # the ANTHROPIC_API_KEY environment variable.
+    return {
+        "chunk_size": {{ chunking.chunk_size }},
+        "chunk_overlap": {{ chunking.chunk_overlap }},
+        "context_model": {{ chunking.context_model | tojson_py }},
+        "context_prompt": {{ chunking.context_prompt | tojson_py }},
+    }

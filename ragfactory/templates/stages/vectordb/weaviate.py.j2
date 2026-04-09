@@ -1,16 +1,27 @@
 {% if framework == "langchain" %}
 import os
+import urllib.parse
 from langchain_weaviate.vectorstores import WeaviateVectorStore
 import weaviate
 {% elif framework == "llamaindex" %}
 import os
+import urllib.parse
 from llama_index.vector_stores.weaviate import WeaviateVectorStore
 import weaviate
 {% endif %}
 
 def build_vectordb(embedder: Any) -> Any:
 {% if framework == "langchain" %}
-    weaviate_client = weaviate.connect_to_local(host="{{ vector_db.url }}")
+    _url = os.environ.get("WEAVIATE_URL", "{{ vector_db.url }}")
+    _p   = urllib.parse.urlparse(_url)
+    weaviate_client = weaviate.connect_to_custom(
+        http_host=_p.hostname or "localhost",
+        http_port=_p.port or 8080,
+        http_secure=_p.scheme == "https",
+        grpc_host=_p.hostname or "localhost",
+        grpc_port=50051,
+        grpc_secure=_p.scheme == "https",
+    )
     return WeaviateVectorStore(
         client=weaviate_client,
         index_name="{{ vector_db.class_name }}",
@@ -18,6 +29,18 @@ def build_vectordb(embedder: Any) -> Any:
         embedding=embedder,
     )
 {% elif framework == "llamaindex" %}
-    weaviate_client = weaviate.connect_to_local()
-    return WeaviateVectorStore(weaviate_client=weaviate_client, index_name="{{ vector_db.class_name }}")
+    _url = os.environ.get("WEAVIATE_URL", "{{ vector_db.url }}")
+    _p   = urllib.parse.urlparse(_url)
+    weaviate_client = weaviate.connect_to_custom(
+        http_host=_p.hostname or "localhost",
+        http_port=_p.port or 8080,
+        http_secure=_p.scheme == "https",
+        grpc_host=_p.hostname or "localhost",
+        grpc_port=50051,
+        grpc_secure=_p.scheme == "https",
+    )
+    return WeaviateVectorStore(
+        weaviate_client=weaviate_client,
+        index_name="{{ vector_db.class_name }}",
+    )
 {% endif %}

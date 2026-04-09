@@ -229,6 +229,56 @@ def _collect_required_env_vars(config: RAGPipelineConfig) -> list[tuple[str, str
     return result
 
 
+# ─── Embedding Dimension Lookup ───────────────────────────────────────────────
+
+_EMBEDDING_DIMS: dict[str, int] = {
+    # OpenAI
+    "text-embedding-3-small": 1536,
+    "text-embedding-3-large": 3072,
+    "text-embedding-ada-002": 1536,
+    # Cohere
+    "embed-v4.0": 1024,
+    "embed-english-v3.0": 1024,
+    "embed-multilingual-v3.0": 1024,
+    # Voyage
+    "voyage-3": 1024,
+    "voyage-3-lite": 512,
+    "voyage-finance-2": 1024,
+    "voyage-code-2": 1536,
+    "voyage-large-2": 1536,
+    # Gemini
+    "models/text-embedding-004": 768,
+    # BGE-M3
+    "BAAI/bge-m3": 1024,
+    # Nomic
+    "nomic-embed-text-v1.5": 768,
+    "nomic-embed-text-v1": 768,
+    # Jina
+    "jina-embeddings-v3": 1024,
+    "jina-embeddings-v2-base-en": 768,
+}
+
+
+_EMBEDDING_TYPE_DIMS: dict[str, int] = {
+    "bge_m3": 1024,
+    "nomic": 768,
+    "jina": 1024,
+}
+
+
+def _get_embedding_dim(config: "RAGPipelineConfig") -> int:
+    """Return the output vector dimension for the configured embedding model."""
+    emb = config.indexing.embedding
+    # OpenAIEmbeddingConfig has an explicit dimensions field
+    if hasattr(emb, "dimensions") and emb.dimensions is not None:
+        return emb.dimensions
+    # Configs with a model field (OpenAI, Cohere, Voyage, Gemini, Jina, Nomic)
+    if hasattr(emb, "model") and emb.model is not None:
+        return _EMBEDDING_DIMS.get(emb.model, 1536)
+    # Configs identified by type only (BGE-M3, HuggingFace-based, etc.)
+    return _EMBEDDING_TYPE_DIMS.get(str(emb.type), 1536)
+
+
 # ─── Generator stages ─────────────────────────────────────────────────────────
 
 
@@ -291,7 +341,7 @@ def _render_stages(
     stages["vectordb"] = loader.render_stage(
         "vectordb",
         config.indexing.vector_db.type,
-        {**base_ctx, "vector_db": config.indexing.vector_db},
+        {**base_ctx, "vector_db": config.indexing.vector_db, "embedding_dim": _get_embedding_dim(config)},
     )
 
     # 4. Retrieval

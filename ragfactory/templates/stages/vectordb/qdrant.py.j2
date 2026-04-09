@@ -10,14 +10,19 @@ from qdrant_client import QdrantClient
 
 def build_vectordb(embedder: Any) -> Any:
 {% if framework == "langchain" %}
-    client = QdrantClient(url=os.environ.get("QDRANT_URL", "{{ vector_db.url }}"), api_key=os.environ.get("QDRANT_API_KEY"))
-    return QdrantVectorStore.from_existing_collection(
-        embedding=embedder,
-        collection_name="{{ vector_db.collection_name }}",
+    client = QdrantClient(
         url=os.environ.get("QDRANT_URL", "{{ vector_db.url }}"),
         api_key=os.environ.get("QDRANT_API_KEY"),
     )
+    return QdrantVectorStore(
+        client=client,
+        collection_name="{{ vector_db.collection_name }}",
+        embedding=embedder,
+    )
 {% elif framework == "llamaindex" %}
-    client = QdrantClient(url=os.environ.get("QDRANT_URL", "{{ vector_db.url }}"), api_key=os.environ.get("QDRANT_API_KEY"))
+    client = QdrantClient(
+        url=os.environ.get("QDRANT_URL", "{{ vector_db.url }}"),
+        api_key=os.environ.get("QDRANT_API_KEY"),
+    )
     return QdrantVectorStore(client=client, collection_name="{{ vector_db.collection_name }}")
 {% endif %}

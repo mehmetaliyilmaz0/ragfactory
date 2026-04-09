@@ -7,7 +7,7 @@ from __future__ import annotations
 import os
 from typing import Any
 
-from llama_index.core import Settings, StorageContext, VectorStoreIndex
+from llama_index.core import Settings
 from llama_index.core.query_engine import RetrieverQueryEngine
 
 # ─── Prompt template ──────────────────────────────────────────────────────────
@@ -52,12 +52,15 @@ def run_pipeline(query: str) -> str:
     Settings.llm         = build_llm()
 
     vectorstore = build_vectordb(Settings.embed_model)
-    index       = VectorStoreIndex.from_vector_store(vectorstore)
-    retriever   = build_retrieval(index)
+    retriever   = build_retrieval(vectorstore)
 
     node_postprocessors: list = []
 {% if stages.reranker is defined and stages.reranker %}
     node_postprocessors.append(build_reranker())
+{% endif %}
+{% if config.retrieval.type == "sentence_window" %}
+    # ── Sentence Window: replace retrieved sentence nodes with surrounding context
+    node_postprocessors.append(build_sentence_window_postprocessor())
 {% endif %}
 
 {% if pre_retrieval.query_rewriting is not none and pre_retrieval.query_rewriting.enabled %}

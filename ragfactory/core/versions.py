@@ -212,8 +212,7 @@ DEPENDENCY_MATRIX: dict[str, dict[str, dict[str, list[str]]]] = {
                 "ragatouille>=0.0.8,<0.1.0",
             ],
             "flashrank": [
-                "llama-index-postprocessor-rankgpt-rerank>=0.2.0,<0.3.0",
-                "flashrank>=0.2.0,<1.0.0",
+                "llama-index-postprocessor-flashrank-reranker>=0.2.0,<0.3.0",
             ],
         },
         "llm": {

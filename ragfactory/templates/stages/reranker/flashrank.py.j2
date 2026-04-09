@@ -1,24 +1,23 @@
 {% if framework == "langchain" %}
 from langchain.retrievers.document_compressors import FlashrankRerank
 from langchain.retrievers import ContextualCompressionRetriever
-{% else %}
-from llama_index.postprocessor.rankgpt_rerank import RankGPTRerank
-from llama_index.core import Settings
-{% endif %}
 from typing import Any
 
 
 def build_reranker(retriever: Any) -> Any:
-{% if framework == "langchain" %}
     compressor = FlashrankRerank(model="{{ reranker.model }}", top_n={{ reranker.top_n }})
     return ContextualCompressionRetriever(
         base_compressor=compressor,
         base_retriever=retriever,
     )
-{% else %}
-    # FlashRank is not directly in LlamaIndex — use RankGPT as lightweight reranker
-    return RankGPTRerank(
+{% elif framework == "llamaindex" %}
+from llama_index.postprocessor.flashrank_reranker import FlashrankRerank
+from typing import Any
+
+
+def build_reranker() -> Any:
+    return FlashrankRerank(
+        model="{{ reranker.model }}",
         top_n={{ reranker.top_n }},
-        llm=Settings.llm,
     )
 {% endif %}

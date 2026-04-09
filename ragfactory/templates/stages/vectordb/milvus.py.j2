@@ -17,6 +17,6 @@ def build_vectordb(embedder: Any) -> Any:
     return MilvusVectorStore(
         uri=os.environ.get("MILVUS_URI", "{{ vector_db.uri }}"),
         collection_name="{{ vector_db.collection_name }}",
-        dim=1536,
+        dim={{ embedding_dim }},
     )
 {% endif %}

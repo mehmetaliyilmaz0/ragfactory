@@ -1,9 +1,7 @@
 {% if framework == "langchain" %}
-import os
 import chromadb
 from langchain_chroma import Chroma
 {% elif framework == "llamaindex" %}
-import os
 import chromadb
 from llama_index.vector_stores.chroma import ChromaVectorStore
 {% endif %}

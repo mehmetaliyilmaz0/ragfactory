@@ -78,6 +78,7 @@ from ragfactory.core.generator import (
     _DEFAULT_TEMPLATE_DIR,
     _EXTERNAL_SERVICE_DBS,
     _collect_required_env_vars,
+    _get_embedding_dim,
     generate,
 )
 from ragfactory.core.versions import get_dependencies
@@ -848,6 +849,7 @@ def _vectordb_ctx(config: RAGPipelineConfig) -> dict:
         "dependencies": get_dependencies(config),
         "python_version": "3.11",
         "vector_db": config.indexing.vector_db,
+        "embedding_dim": _get_embedding_dim(config),
     }
 
 
@@ -1074,7 +1076,10 @@ class TestRerankerStages:
         )
         rendered = _loader().render_stage("reranker", "cohere", _reranker_ctx(config))
         assert rendered.strip()
-        assert "def build_reranker(retriever" in rendered
+        if framework == "langchain":
+            assert "def build_reranker(retriever" in rendered
+        else:
+            assert "def build_reranker()" in rendered
 
     # ── cross_encoder ─────────────────────────────────────────────────────────
 
@@ -1086,7 +1091,10 @@ class TestRerankerStages:
         )
         rendered = _loader().render_stage("reranker", "cross_encoder", _reranker_ctx(config))
         assert rendered.strip()
-        assert "def build_reranker(retriever" in rendered
+        if framework == "langchain":
+            assert "def build_reranker(retriever" in rendered
+        else:
+            assert "def build_reranker()" in rendered
 
     # ── colbert ───────────────────────────────────────────────────────────────
 
@@ -1098,7 +1106,10 @@ class TestRerankerStages:
         )
         rendered = _loader().render_stage("reranker", "colbert", _reranker_ctx(config))
         assert rendered.strip()
-        assert "def build_reranker(retriever" in rendered
+        if framework == "langchain":
+            assert "def build_reranker(retriever" in rendered
+        else:
+            assert "def build_reranker()" in rendered
 
     # ── flashrank ─────────────────────────────────────────────────────────────
 
@@ -1110,7 +1121,10 @@ class TestRerankerStages:
         )
         rendered = _loader().render_stage("reranker", "flashrank", _reranker_ctx(config))
         assert rendered.strip()
-        assert "def build_reranker(retriever" in rendered
+        if framework == "langchain":
+            assert "def build_reranker(retriever" in rendered
+        else:
+            assert "def build_reranker()" in rendered
 
     # ── specific assertions ───────────────────────────────────────────────────
 

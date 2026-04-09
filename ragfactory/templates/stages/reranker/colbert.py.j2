@@ -1,32 +1,78 @@
+{% if framework == "langchain" %}
 from ragatouille import RAGPretrainedModel
-from typing import Any
+from langchain_core.retrievers import BaseRetriever
+from langchain_core.callbacks import CallbackManagerForRetrieverRun
+from langchain_core.documents import Document
+from pydantic import ConfigDict
+from typing import Any, List
+
+
+class _ColBERTRetriever(BaseRetriever):
+    """LangChain BaseRetriever wrapping RAGatouille ColBERT late-interaction reranker."""
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    base_retriever: Any
+    rag_model: Any
+    top_n: int
+
+    def _get_relevant_documents(
+        self,
+        query: str,
+        *,
+        run_manager: CallbackManagerForRetrieverRun,
+    ) -> List[Document]:
+        docs = self.base_retriever.invoke(query)
+        texts = [d.page_content for d in docs]
+        if not texts:
+            return docs[:self.top_n]
+        results = self.rag_model.rerank(query=query, documents=texts, k=self.top_n)
+        ranked = {r["content"]: r["score"] for r in results}
+        return sorted(
+            docs,
+            key=lambda d: ranked.get(d.page_content, 0.0),
+            reverse=True,
+        )[:self.top_n]
 
 
 def build_reranker(retriever: Any) -> Any:
-{% if framework == "langchain" %}
-    # ColBERT via RAGatouille — wraps retriever with late-interaction reranking
     rag = RAGPretrainedModel.from_pretrained("{{ reranker.model }}")
-    # RAGatouille does not implement the LangChain BaseRetriever interface directly.
-    # Use as a post-retrieval step: retriever returns docs, rag.rerank() re-scores them.
-    class _ColBERTRetriever:
-        def __init__(self, base_retriever, rag_model, top_n):
-            self._base = base_retriever
-            self._rag  = rag_model
-            self._top_n = top_n
+    return _ColBERTRetriever(base_retriever=retriever, rag_model=rag, top_n={{ reranker.top_n }})
+{% elif framework == "llamaindex" %}
+from ragatouille import RAGPretrainedModel
+from llama_index.core.postprocessor.types import BaseNodePostprocessor
+from llama_index.core.schema import NodeWithScore, QueryBundle
+from pydantic import ConfigDict
+from typing import Any, List, Optional
 
-        def invoke(self, query):
-            docs = self._base.invoke(query)
-            texts = [d.page_content for d in docs]
-            if not texts:
-                return docs
-            results = self._rag.rerank(query=query, documents=texts, k=self._top_n)
-            ranked_texts = {r["content"]: r["score"] for r in results}
-            return sorted(docs, key=lambda d: ranked_texts.get(d.page_content, 0), reverse=True)[:self._top_n]
 
-    return _ColBERTRetriever(retriever, rag, {{ reranker.top_n }})
-{% else %}
-    # ColBERT via RAGatouille — used as a postprocessor
+class _ColBERTPostprocessor(BaseNodePostprocessor):
+    """LlamaIndex NodePostProcessor wrapping RAGatouille ColBERT."""
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    rag_model: Any
+    top_n: int
+
+    def _postprocess_nodes(
+        self,
+        nodes: List[NodeWithScore],
+        query_bundle: Optional[QueryBundle] = None,
+    ) -> List[NodeWithScore]:
+        if not nodes or query_bundle is None:
+            return nodes[:self.top_n]
+        query = query_bundle.query_str
+        texts = [n.node.get_content() for n in nodes]
+        results = self.rag_model.rerank(query=query, documents=texts, k=self.top_n)
+        score_map = {r["content"]: r["score"] for r in results}
+        return sorted(
+            nodes,
+            key=lambda n: score_map.get(n.node.get_content(), 0.0),
+            reverse=True,
+        )[:self.top_n]
+
+
+def build_reranker() -> Any:
     rag = RAGPretrainedModel.from_pretrained("{{ reranker.model }}")
-    # Return rag model — pipeline.py uses it as a node postprocessor
-    return rag
+    return _ColBERTPostprocessor(rag_model=rag, top_n={{ reranker.top_n }})
 {% endif %}

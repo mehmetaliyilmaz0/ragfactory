@@ -17,6 +17,6 @@ def build_vectordb(embedder: Any) -> Any:
     return PGVectorStore.from_params(
         connection_string=os.environ["PGVECTOR_CONNECTION_STRING"],
         table_name="{{ vector_db.collection_name }}",
-        embed_dim=1536,
+        embed_dim={{ embedding_dim }},
     )
 {% endif %}

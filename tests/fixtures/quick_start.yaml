@@ -1,0 +1,17 @@
+# ragfactory quick-start config — recursive chunking, OpenAI, ChromaDB, dense retrieval
+name: quick-start
+framework: langchain
+indexing:
+  chunking:
+    type: recursive
+    chunk_size: 512
+    chunk_overlap: 50
+  embedding:
+    type: openai
+  vector_db:
+    type: chromadb
+retrieval:
+  type: dense
+generation:
+  llm:
+    type: openai

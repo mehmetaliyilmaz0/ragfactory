@@ -42,9 +42,9 @@ dev = [
 ragfactory = "ragfactory.cli.main:app"
 
 [project.urls]
-Homepage = "https://github.com/your-username/ragfactory"
-Documentation = "https://github.com/your-username/ragfactory#readme"
-Issues = "https://github.com/your-username/ragfactory/issues"
+Homepage = "https://github.com/mehmetaliyilmaz0/ragfactory"
+Documentation = "https://github.com/mehmetaliyilmaz0/ragfactory#readme"
+Issues = "https://github.com/mehmetaliyilmaz0/ragfactory/issues"
 
 # ─── Hatch ────────────────────────────────────────────────────────────────────
 

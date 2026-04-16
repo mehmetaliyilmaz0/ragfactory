@@ -4,7 +4,7 @@
 
 **Generate production-ready RAG pipelines from a single config file.**
 
-[![PyPI version](https://img.shields.io/pypi/v/ragfactory?color=blue&label=ragfactory)](https://pypi.org/project/ragfactory/)
+[![Version](https://img.shields.io/badge/ragfactory-v0.1.0-blue)](https://github.com/mehmetaliyilmaz0/ragfactory)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
 [![LangChain](https://img.shields.io/badge/LangChain-%E2%9C%93-blue)](https://python.langchain.com/)

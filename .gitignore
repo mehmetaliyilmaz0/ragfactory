@@ -71,3 +71,10 @@ logs/
 .Trashes
 Thumbs.db
 Desktop.ini
+
+# ─── Internal development notes ───────────────────────────────────────────────
+AGENTS.md
+
+# ─── Internal development notes (not for public consumption) ──────────────────
+AGENTS.md
+RAG_RESEARCH_FINDINGS.md

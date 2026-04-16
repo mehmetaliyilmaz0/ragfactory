@@ -566,6 +566,21 @@ python -c "import ast; ast.parse(open('/tmp/test-out/pipeline.py').read()); prin
 
 ---
 
+## Releasing
+
+Bump the version, tag, and publish to PyPI in one command:
+
+```bash
+python release.py 0.2.0
+```
+
+That's it. The script updates `pyproject.toml`, commits, tags, and pushes. GitHub Actions picks up the tag and publishes to PyPI automatically.
+
+> **Pre-requisite:** Add your PyPI token as a GitHub secret named `PYPI_API_TOKEN` under  
+> Settings → Secrets and variables → Actions → New repository secret.
+
+---
+
 ## Roadmap
 
 - [x] Phase 1 — CLI: `generate`, `validate`, `init`, `options`

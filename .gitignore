@@ -75,6 +75,7 @@ Desktop.ini
 # ─── Internal development notes ───────────────────────────────────────────────
 AGENTS.md
 CLAUDE.md
+.claude/
 
 # ─── Internal development notes (not for public consumption) ──────────────────
 AGENTS.md

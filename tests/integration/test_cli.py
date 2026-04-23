@@ -345,9 +345,9 @@ class TestInitAdditional:
                 str(out),
             ],
         )
-        assert result.exit_code != 0
-        assert "sentence_window" in result.output
+        assert result.exit_code == 2
         assert "Invalid value" in result.output
+        assert "Choose from:" in result.output
         assert not out.exists()
 
     def test_init_generator_failure_exits_1(

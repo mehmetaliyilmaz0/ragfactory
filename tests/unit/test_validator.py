@@ -1065,12 +1065,27 @@ class TestContextualChunkingCloudModels:
         info = next(i for i in result.issues if i.code == "CONTEXTUAL_CHUNKING_EXTRA_API_KEY")
         assert "COHERE_API_KEY" in info.message
 
-    def test_mistral_large_triggers_extra_api_key_info(self) -> None:
+    def test_mistral_large_triggers_manual_setup_info(self) -> None:
         result = validate(self._ctx_cfg("mistral-large"))
         assert not _has_warning(result, "CONTEXTUAL_CHUNKING_SLOW_LOCAL_MODEL")
-        assert _has_info(result, "CONTEXTUAL_CHUNKING_EXTRA_API_KEY")
-        info = next(i for i in result.issues if i.code == "CONTEXTUAL_CHUNKING_EXTRA_API_KEY")
+        assert not _has_info(result, "CONTEXTUAL_CHUNKING_EXTRA_API_KEY")
+        assert _has_info(result, "CONTEXTUAL_CHUNKING_MANUAL_PROVIDER_SETUP")
+        info = next(
+            i for i in result.issues
+            if i.code == "CONTEXTUAL_CHUNKING_MANUAL_PROVIDER_SETUP"
+        )
         assert "MISTRAL_API_KEY" in info.message
+
+    def test_bedrock_triggers_manual_setup_info(self) -> None:
+        result = validate(self._ctx_cfg("bedrock/amazon.titan-text-lite-v1"))
+        assert not _has_warning(result, "CONTEXTUAL_CHUNKING_SLOW_LOCAL_MODEL")
+        assert not _has_info(result, "CONTEXTUAL_CHUNKING_EXTRA_API_KEY")
+        assert _has_info(result, "CONTEXTUAL_CHUNKING_MANUAL_PROVIDER_SETUP")
+        info = next(
+            i for i in result.issues
+            if i.code == "CONTEXTUAL_CHUNKING_MANUAL_PROVIDER_SETUP"
+        )
+        assert "AWS_BEARER_TOKEN_BEDROCK" in info.message
 
     def test_llama32_still_triggers_local_warning(self) -> None:
         # Regression: bare Ollama model names must still emit the slow-local warning

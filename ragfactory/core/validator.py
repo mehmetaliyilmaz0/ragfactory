@@ -31,6 +31,7 @@ from ragfactory.core._providers import (
     PROVIDER_ENV_VAR,
     infer_context_model_provider,
     is_probably_local_model,
+    supports_contextual_provider_scaffolding,
 )
 from ragfactory.core.compatibility import INCOMPATIBLE, WARNINGS, Severity
 from ragfactory.core.config import (
@@ -297,7 +298,24 @@ def _check_contextual_chunking(
         # Unknown cloud-like model (contains '/' or ':') — emit nothing.
         return
 
-    # Known cloud provider: check if it needs an extra API key beyond the main LLM.
+    if not supports_contextual_provider_scaffolding(context_provider):
+        env_var = PROVIDER_ENV_VAR.get(context_provider, f"{context_provider.upper()}_API_KEY")
+        issues.append(ValidationIssue(
+            severity=ValidationSeverity.INFO,
+            code="CONTEXTUAL_CHUNKING_MANUAL_PROVIDER_SETUP",
+            message=(
+                f"context_model='{context_model}' uses the {context_provider} API, "
+                "but ragfactory does not automatically scaffold contextual chunking "
+                f"environment variables for this provider. Configure {env_var} manually "
+                "if you customise the generated pipeline."
+            ),
+            component_path="indexing.chunking.context_model",
+            suggestion=f"Configure {env_var} manually in your deployment environment.",
+        ))
+        return
+
+    # Known cloud provider with scaffold support: check if it needs an extra API key
+    # beyond the main LLM.
     llm_type = config.generation.llm.type
     llm_provider_map = {
         "openai":     "openai",

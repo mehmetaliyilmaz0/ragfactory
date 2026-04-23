@@ -247,7 +247,7 @@ ragfactory options --json
 |-------|------|------------|
 | `openai` | 1536 | `text-embedding-3-small/large`. Fast, reliable, great default. |
 | `cohere` | 1024 | `embed-v4.0`. Multilingual. Separate input types for query/document. |
-| `voyage` | 1024 | `voyage-3-large`. **Top MTEB 2024 retrieval benchmarks.** |
+| `voyage` | 2048 | `voyage-3-large`. **Top MTEB 2024 retrieval benchmarks.** MRL-compatible down to 256 dims. |
 | `gemini` | 768 | `text-embedding-004`. Google ecosystem integration. |
 | `bge_m3` | 1024 | `BAAI/BGE-M3`. Self-hosted. Dense + sparse + ColBERT in one model. |
 | `nomic` | 768 | `nomic-embed-text-v1.5`. Self-hosted or API. Configurable dims: 64–768. |

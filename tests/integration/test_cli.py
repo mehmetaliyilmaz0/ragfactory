@@ -245,6 +245,13 @@ class TestOptions:
         result = runner.invoke(app, ["options", "--component", "nonexistent"])
         assert result.exit_code == 1
 
+    def test_options_chunking_lists_proposition_not_sentence_window(self) -> None:
+        result = runner.invoke(app, ["options", "--component", "chunking"])
+        assert result.exception is None
+        assert result.exit_code == 0
+        assert "proposition" in result.output
+        assert "sentence_window" not in result.output
+
 
 # ─── init ─────────────────────────────────────────────────────────────────────
 
@@ -332,6 +339,68 @@ class TestInit:
 
 
 # ─── --help / --version ───────────────────────────────────────────────────────
+
+class TestInitAdditional:
+    def test_init_accepts_proposition_chunking(self, tmp_path: Path) -> None:
+        out = tmp_path / "proposition-test"
+        result = runner.invoke(
+            app,
+            [
+                "init",
+                "--name",
+                "proposition-test",
+                "--chunking",
+                "proposition",
+                "--vector-db",
+                "chromadb",
+                "--output",
+                str(out),
+            ],
+        )
+        assert result.exception is None
+        assert result.exit_code == 0
+        assert (out / "pipeline.py").exists()
+
+    def test_init_rejects_sentence_window_chunking(self, tmp_path: Path) -> None:
+        out = tmp_path / "bad-chunking"
+        result = runner.invoke(
+            app,
+            [
+                "init",
+                "--name",
+                "bad-chunking",
+                "--chunking",
+                "sentence_window",
+                "--output",
+                str(out),
+            ],
+        )
+        assert result.exit_code == 2
+        assert "Invalid value" in result.output
+        assert "Choose from:" in result.output
+        assert not out.exists()
+
+    def test_init_generator_failure_exits_1(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        out = tmp_path / "broken-init"
+        monkeypatch.setattr(
+            "ragfactory.cli.main._gen",
+            lambda cfg: GeneratorResult(
+                validation_passed=False,
+                errors=["synthetic init generator failure"],
+                config_yaml="name: broken\n",
+            ),
+        )
+        result = runner.invoke(
+            app,
+            ["init", "--name", "broken-init", "--output", str(out)],
+        )
+        assert result.exit_code == 1
+        assert "synthetic init generator failure" in result.output
+        assert not out.exists()
 
 
 class TestMeta:

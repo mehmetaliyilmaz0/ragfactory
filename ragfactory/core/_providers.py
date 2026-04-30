@@ -37,6 +37,15 @@ PROVIDER_ENV_VAR: dict[str, str] = {
     "bedrock":    "AWS_BEARER_TOKEN_BEDROCK",
 }
 
+# Providers for which ragfactory can automatically scaffold contextual chunking
+# environment variables in the generated project.
+_AUTOMATIC_CONTEXTUAL_PROVIDER_SCAFFOLDING: frozenset[str] = frozenset({
+    "openai",
+    "anthropic",
+    "cohere_llm",
+    "gemini",
+})
+
 
 # ─── Public functions ──────────────────────────────────────────────────────────
 
@@ -70,6 +79,11 @@ def infer_context_model_provider(model_name: str) -> str | None:
         if any(model_name.startswith(p) for p in prefixes):
             return provider
     return None
+
+
+def supports_contextual_provider_scaffolding(provider: str) -> bool:
+    """Return True when ragfactory scaffolds env vars for this provider."""
+    return provider in _AUTOMATIC_CONTEXTUAL_PROVIDER_SCAFFOLDING
 
 
 def is_probably_local_model(model_name: str) -> bool:

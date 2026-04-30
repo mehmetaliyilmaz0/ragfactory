@@ -617,7 +617,7 @@ pipeline:
     embedding:
       provider: "voyage"
       model: "voyage-3-large"
-      dimensions: 1024
+      dimensions: 2048
     vector_db:
       provider: "qdrant"
       collection: "legal-chunks"

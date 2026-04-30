@@ -39,7 +39,10 @@ from pathlib import Path
 
 import jinja2
 
-from ragfactory.core._providers import infer_context_model_provider
+from ragfactory.core._providers import (
+    infer_context_model_provider,
+    supports_contextual_provider_scaffolding,
+)
 from ragfactory.core.config import RAGPipelineConfig
 from ragfactory.core.versions import get_dependencies
 
@@ -211,7 +214,7 @@ def _collect_required_env_vars(config: RAGPipelineConfig) -> list[tuple[str, str
     if config.indexing.chunking.type == "contextual":
         ctx_model: str = config.indexing.chunking.context_model  # type: ignore[union-attr]
         provider = infer_context_model_provider(ctx_model)
-        if provider is not None:
+        if provider is not None and supports_contextual_provider_scaffolding(provider):
             _add(provider)
 
     # Parser
@@ -223,40 +226,43 @@ def _collect_required_env_vars(config: RAGPipelineConfig) -> list[tuple[str, str
 
 # ─── Embedding Dimension Lookup ───────────────────────────────────────────────
 
-_EMBEDDING_DIMS: dict[str, int] = {
-    # OpenAI
-    "text-embedding-3-small": 1536,
-    "text-embedding-3-large": 3072,
-    "text-embedding-ada-002": 1536,
-    # Cohere
-    "embed-v4.0": 1024,
-    "embed-english-v3.0": 1024,
-    "embed-multilingual-v3.0": 1024,
-    # Voyage
-    "voyage-3-large": 1024,
-    "voyage-3": 1024,
-    "voyage-3-lite": 512,
-    "voyage-finance-2": 1024,
-    "voyage-code-3": 1024,
-    "voyage-law-2": 1024,
-    # Gemini
-    "text-embedding-004": 768,
-    "embedding-001": 768,
-    # BGE-M3
-    "BAAI/bge-m3": 1024,
-    # Nomic
-    "nomic-embed-text-v1.5": 768,
-    "nomic-embed-text-v1": 768,
-    # Jina
-    "jina-embeddings-v3": 1024,
-    "jina-embeddings-v2-base-en": 768,
+_EMBEDDING_DIMS_BY_PROVIDER: dict[str, dict[str, int]] = {
+    "openai": {
+        "text-embedding-3-small": 1536,
+        "text-embedding-3-large": 3072,
+        "text-embedding-ada-002": 1536,
+    },
+    "cohere": {
+        "embed-v4.0": 1024,
+        "embed-english-v3.0": 1024,
+        "embed-multilingual-v3.0": 1024,
+    },
+    "voyage": {
+        # Local research docs list voyage-3-large and voyage-code-3 at 2048 dims.
+        "voyage-3-large": 2048,
+        "voyage-3": 1024,
+        "voyage-3-lite": 512,
+        "voyage-code-3": 2048,
+        "voyage-finance-2": 1024,
+        "voyage-law-2": 1024,
+    },
+    "gemini": {
+        "text-embedding-004": 768,
+        "embedding-001": 3072,
+    },
+    "nomic": {
+        "nomic-embed-text-v1.5": 768,
+        "nomic-embed-text-v1": 768,
+    },
+    "jina": {
+        "jina-embeddings-v3": 1024,
+        "jina-embeddings-v2-base-en": 768,
+    },
 }
 
 
 _EMBEDDING_TYPE_DIMS: dict[str, int] = {
     "bge_m3": 1024,
-    "nomic": 768,
-    "jina": 1024,
 }
 
 
@@ -266,20 +272,31 @@ def _get_embedding_dim(config: RAGPipelineConfig) -> int:
     # OpenAIEmbeddingConfig has an explicit dimensions field
     if hasattr(emb, "dimensions") and emb.dimensions is not None:
         return emb.dimensions
+
     # NomicEmbeddingConfig exposes Matryoshka reduction as dimensionality.
     if hasattr(emb, "dimensionality"):
         return emb.dimensionality
-    # Configs with a model field (OpenAI, Cohere, Voyage, Gemini, Jina, Nomic)
-    if hasattr(emb, "model") and emb.model is not None:
-        dim = _EMBEDDING_DIMS.get(str(emb.model))
-        if dim is None:
-            raise GeneratorError(f"Unknown embedding dimension for model: {emb.model}")
-        return dim
-    # Configs identified by type only (BGE-M3, HuggingFace-based, etc.)
-    dim = _EMBEDDING_TYPE_DIMS.get(str(emb.type))
-    if dim is None:
-        raise GeneratorError(f"Unknown embedding dimension for embedding type: {emb.type}")
-    return dim
+
+    emb_type = str(emb.type)
+    model_dims = _EMBEDDING_DIMS_BY_PROVIDER.get(emb_type)
+    if model_dims is not None:
+        model_name = getattr(emb, "model", None)
+        if model_name is None:
+            raise GeneratorError(
+                f"Embedding type '{emb_type}' is missing a model name for dimension lookup."
+            )
+        if model_name not in model_dims:
+            raise GeneratorError(
+                f"Unsupported embedding model '{model_name}' for embedding.type='{emb_type}'."
+            )
+        return model_dims[model_name]
+
+    if emb_type in _EMBEDDING_TYPE_DIMS:
+        return _EMBEDDING_TYPE_DIMS[emb_type]
+
+    raise GeneratorError(
+        f"Unsupported embedding.type='{emb_type}' for dimension lookup."
+    )
 
 
 # ─── Generator stages ─────────────────────────────────────────────────────────

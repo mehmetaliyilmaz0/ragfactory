@@ -853,11 +853,11 @@ class TestEmbeddingDimensionLookup:
         ("embedding", "expected_dim"),
         [
             (GeminiEmbeddingConfig(model="text-embedding-004"), 768),
-            (GeminiEmbeddingConfig(model="embedding-001"), 768),
-            (VoyageEmbeddingConfig(model="voyage-3-large"), 1024),
+            (GeminiEmbeddingConfig(model="embedding-001"), 3072),
+            (VoyageEmbeddingConfig(model="voyage-3-large"), 2048),
             (VoyageEmbeddingConfig(model="voyage-3"), 1024),
             (VoyageEmbeddingConfig(model="voyage-3-lite"), 512),
-            (VoyageEmbeddingConfig(model="voyage-code-3"), 1024),
+            (VoyageEmbeddingConfig(model="voyage-code-3"), 2048),
             (VoyageEmbeddingConfig(model="voyage-finance-2"), 1024),
             (VoyageEmbeddingConfig(model="voyage-law-2"), 1024),
         ],
@@ -884,6 +884,30 @@ def _vectordb_ctx(config: RAGPipelineConfig) -> dict:
         "vector_db": config.indexing.vector_db,
         "embedding_dim": _get_embedding_dim(config),
     }
+
+
+class TestEmbeddingDimensions:
+    @pytest.mark.parametrize(
+        ("embedding", "expected_dim"),
+        [
+            (GeminiEmbeddingConfig(model="text-embedding-004"), 768),
+            (GeminiEmbeddingConfig(model="embedding-001"), 3072),
+            (VoyageEmbeddingConfig(model="voyage-3-large"), 2048),
+            (VoyageEmbeddingConfig(model="voyage-3"), 1024),
+            (VoyageEmbeddingConfig(model="voyage-3-lite"), 512),
+            (VoyageEmbeddingConfig(model="voyage-code-3"), 2048),
+        ],
+    )
+    def test_embedding_dim_lookup_matches_schema_literals(
+        self,
+        embedding: object,
+        expected_dim: int,
+    ) -> None:
+        config = _make_config(indexing=IndexingConfig(
+            embedding=embedding,  # type: ignore[arg-type]
+            vector_db=ChromaDBConfig(),
+        ))
+        assert _get_embedding_dim(config) == expected_dim
 
 
 class TestVectorDBStages:
@@ -959,6 +983,28 @@ class TestVectorDBStages:
         assert "def build_vectordb(embedder" in rendered
 
     # ── specific assertions ───────────────────────────────────────────────────
+
+    def test_llamaindex_milvus_uses_gemini_embedding_dim(self) -> None:
+        config = _make_config(
+            framework="llamaindex",
+            indexing=IndexingConfig(
+                embedding=GeminiEmbeddingConfig(model="text-embedding-004"),
+                vector_db=MilvusConfig(),
+            ),
+        )
+        rendered = _loader().render_stage("vectordb", "milvus", _vectordb_ctx(config))
+        assert "dim=768" in rendered
+
+    def test_llamaindex_pgvector_uses_voyage_embedding_dim(self) -> None:
+        config = _make_config(
+            framework="llamaindex",
+            indexing=IndexingConfig(
+                embedding=VoyageEmbeddingConfig(model="voyage-3-large"),
+                vector_db=PgVectorConfig(),
+            ),
+        )
+        rendered = _loader().render_stage("vectordb", "pgvector", _vectordb_ctx(config))
+        assert "embed_dim=2048" in rendered
 
     def test_vectordb_build_fn_takes_embedder(self) -> None:
         """All vectordb templates must have 'def build_vectordb(embedder' signature."""
@@ -1472,6 +1518,22 @@ class TestEnvVarGeneration:
         assert result.validation_passed is False
         assert ".env.example" not in result.files
         assert any("generation.advanced.crag" in error for error in result.errors)
+
+    def test_contextual_mistral_does_not_scaffold_manual_provider_key(self) -> None:
+        config = RAGPipelineConfig(
+            name="ctx-mistral-test",
+            framework="langchain",
+            indexing=IndexingConfig(
+                embedding=OpenAIEmbeddingConfig(),
+                vector_db=QdrantConfig(),
+                chunking=ContextualChunkingConfig(context_model="mistral-large"),
+            ),
+            generation=GenerationConfig(llm=OpenAILLMConfig()),
+        )
+        result = generate(config)
+        env = result.files[".env.example"]
+        assert "OPENAI_API_KEY" in env
+        assert "MISTRAL_API_KEY" not in env
 
 
 class TestDependencyAccuracy:

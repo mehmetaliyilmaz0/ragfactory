@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated, Optional, cast
 
 import typer
 import yaml
@@ -89,6 +89,13 @@ _COMPONENTS: dict[str, list[tuple[str, str]]] = {
 }
 
 _VALID_COMPONENTS: list[str] = list(_COMPONENTS.keys())
+_FRAMEWORK_CHOICES: tuple[str, ...] = ("langchain", "llamaindex")
+_CHUNKING_CHOICES: tuple[str, ...] = tuple(t for t, _ in _COMPONENTS["chunking"])
+_EMBEDDING_CHOICES: tuple[str, ...] = tuple(t for t, _ in _COMPONENTS["embedding"])
+_VECTOR_DB_CHOICES: tuple[str, ...] = tuple(t for t, _ in _COMPONENTS["vectordb"])
+_RETRIEVAL_CHOICES: tuple[str, ...] = tuple(t for t, _ in _COMPONENTS["retrieval"])
+_RERANKER_CHOICES: tuple[str, ...] = ("none", *(t for t, _ in _COMPONENTS["reranker"]))
+_LLM_CHOICES: tuple[str, ...] = tuple(_LLM_TYPE_MAP.keys())
 
 # ─── Version callback ─────────────────────────────────────────────────────────
 
@@ -112,6 +119,48 @@ def _root(
     ] = None,
 ) -> None:
     """Generate production-ready RAG pipelines from a single config."""
+
+
+def _choices_help(choices: tuple[str, ...]) -> str:
+    return "|".join(choices)
+
+
+def _validate_choice(
+    value: str | None,
+    choices: tuple[str, ...],
+    label: str,
+) -> str | None:
+    if value is None or value in choices:
+        return value
+    raise typer.BadParameter(f"Invalid {label}. Choose from: {', '.join(choices)}")
+
+
+def _framework_callback(value: str) -> str:
+    return cast(str, _validate_choice(value, _FRAMEWORK_CHOICES, "framework"))
+
+
+def _chunking_callback(value: str) -> str:
+    return cast(str, _validate_choice(value, _CHUNKING_CHOICES, "chunking strategy"))
+
+
+def _embedding_callback(value: str) -> str:
+    return cast(str, _validate_choice(value, _EMBEDDING_CHOICES, "embedding model"))
+
+
+def _vector_db_callback(value: str) -> str:
+    return cast(str, _validate_choice(value, _VECTOR_DB_CHOICES, "vector database"))
+
+
+def _retrieval_callback(value: str | None) -> str | None:
+    return _validate_choice(value, _RETRIEVAL_CHOICES, "retrieval strategy")
+
+
+def _reranker_callback(value: str) -> str:
+    return cast(str, _validate_choice(value, _RERANKER_CHOICES, "reranker"))
+
+
+def _llm_callback(value: str) -> str:
+    return cast(str, _validate_choice(value, _LLM_CHOICES, "LLM provider"))
 
 
 # ─── Private helpers ──────────────────────────────────────────────────────────
@@ -377,39 +426,56 @@ def init_cmd(
     ],
     framework: Annotated[
         str,
-        typer.Option(help="Framework: langchain|llamaindex"),
+        typer.Option(
+            help=f"Framework: {_choices_help(_FRAMEWORK_CHOICES)}",
+            callback=_framework_callback,
+        ),
     ] = "langchain",
     chunking: Annotated[
         str,
         typer.Option(
-            help=(
-                "Chunking strategy: "
-                "fixed|recursive|semantic|contextual|late|page_level|proposition"
-            )
+            help=f"Chunking strategy: {_choices_help(_CHUNKING_CHOICES)}",
+            callback=_chunking_callback,
         ),
     ] = "recursive",
     embedding: Annotated[
         str,
-        typer.Option(help="Embedding model: openai|cohere|voyage|gemini|bge_m3|nomic|jina"),
+        typer.Option(
+            help=f"Embedding model: {_choices_help(_EMBEDDING_CHOICES)}",
+            callback=_embedding_callback,
+        ),
     ] = "openai",
     vector_db: Annotated[
         str,
-        typer.Option("--vector-db", help="Vector database: chromadb|qdrant|pinecone|weaviate|milvus|pgvector"),
+        typer.Option(
+            "--vector-db",
+            help=f"Vector database: {_choices_help(_VECTOR_DB_CHOICES)}",
+            callback=_vector_db_callback,
+        ),
     ] = "chromadb",
     retrieval: Annotated[
         Optional[str],
         typer.Option(
-            help="Retrieval strategy (auto-selected if omitted): "
-                 "dense|hybrid_rrf|hybrid_weighted|small_to_big|sentence_window"
+            help=(
+                "Retrieval strategy (auto-selected if omitted): "
+                f"{_choices_help(_RETRIEVAL_CHOICES)}"
+            ),
+            callback=_retrieval_callback,
         ),
     ] = None,
     reranker: Annotated[
         str,
-        typer.Option(help="Reranker: none|cohere|cross_encoder|colbert|flashrank"),
+        typer.Option(
+            help=f"Reranker: {_choices_help(_RERANKER_CHOICES)}",
+            callback=_reranker_callback,
+        ),
     ] = "none",
     llm: Annotated[
         str,
-        typer.Option(help="LLM provider: openai|anthropic|cohere|ollama"),
+        typer.Option(
+            help=f"LLM provider: {_choices_help(_LLM_CHOICES)}",
+            callback=_llm_callback,
+        ),
     ] = "openai",
     output: Annotated[
         Optional[Path],

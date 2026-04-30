@@ -52,7 +52,10 @@ Issues = "https://github.com/mehmetaliyilmaz0/ragfactory/issues"
 packages = ["ragfactory"]
 # Templates must be bundled so that importlib.resources.files("ragfactory") / "templates"
 # resolves correctly when ragfactory is installed from a wheel (not just an editable install).
-include = ["ragfactory/templates/**"]
+include = [
+    "ragfactory/templates/**",
+    "ragfactory/templates/entrypoints/common/.env.example.j2",
+]
 
 # ─── Ruff ─────────────────────────────────────────────────────────────────────
 

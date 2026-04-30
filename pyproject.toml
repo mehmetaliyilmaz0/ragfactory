@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ragfactory"
-version = "0.1.1"
+version = "0.1.2"
 description = "Generate production-ready RAG pipelines from a single config"
 readme = "README.md"
 license = { text = "Apache-2.0" }

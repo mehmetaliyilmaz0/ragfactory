@@ -69,9 +69,6 @@ _ENV_VAR_MAP: dict[str, list[tuple[str, str]]] = {
     # llm
     "anthropic": [("ANTHROPIC_API_KEY", "Anthropic API key")],
     "cohere_llm":[("COHERE_API_KEY", "Cohere API key")],
-    # web search (CRAG)
-    "tavily":    [("TAVILY_API_KEY", "Tavily Search API key")],
-    "serper":    [("SERPER_API_KEY", "Serper API key")],
     # parsers
     "azure_doc_intelligence": [
         ("AZURE_DOC_INTELLIGENCE_KEY", "Azure Document Intelligence key"),
@@ -217,11 +214,6 @@ def _collect_required_env_vars(config: RAGPipelineConfig) -> list[tuple[str, str
         if provider is not None:
             _add(provider)
 
-    # CRAG web search
-    adv = config.generation.advanced
-    if adv is not None and adv.crag is not None and adv.crag.enabled:
-        _add(adv.crag.web_search_provider)
-
     # Parser
     if config.ingestion.parser == "azure_doc_intelligence":
         _add("azure_doc_intelligence")
@@ -241,13 +233,15 @@ _EMBEDDING_DIMS: dict[str, int] = {
     "embed-english-v3.0": 1024,
     "embed-multilingual-v3.0": 1024,
     # Voyage
+    "voyage-3-large": 1024,
     "voyage-3": 1024,
     "voyage-3-lite": 512,
     "voyage-finance-2": 1024,
-    "voyage-code-2": 1536,
-    "voyage-large-2": 1536,
+    "voyage-code-3": 1024,
+    "voyage-law-2": 1024,
     # Gemini
-    "models/text-embedding-004": 768,
+    "text-embedding-004": 768,
+    "embedding-001": 768,
     # BGE-M3
     "BAAI/bge-m3": 1024,
     # Nomic
@@ -266,17 +260,26 @@ _EMBEDDING_TYPE_DIMS: dict[str, int] = {
 }
 
 
-def _get_embedding_dim(config: "RAGPipelineConfig") -> int:
+def _get_embedding_dim(config: RAGPipelineConfig) -> int:
     """Return the output vector dimension for the configured embedding model."""
     emb = config.indexing.embedding
     # OpenAIEmbeddingConfig has an explicit dimensions field
     if hasattr(emb, "dimensions") and emb.dimensions is not None:
         return emb.dimensions
+    # NomicEmbeddingConfig exposes Matryoshka reduction as dimensionality.
+    if hasattr(emb, "dimensionality"):
+        return emb.dimensionality
     # Configs with a model field (OpenAI, Cohere, Voyage, Gemini, Jina, Nomic)
     if hasattr(emb, "model") and emb.model is not None:
-        return _EMBEDDING_DIMS.get(emb.model, 1536)
+        dim = _EMBEDDING_DIMS.get(str(emb.model))
+        if dim is None:
+            raise GeneratorError(f"Unknown embedding dimension for model: {emb.model}")
+        return dim
     # Configs identified by type only (BGE-M3, HuggingFace-based, etc.)
-    return _EMBEDDING_TYPE_DIMS.get(str(emb.type), 1536)
+    dim = _EMBEDDING_TYPE_DIMS.get(str(emb.type))
+    if dim is None:
+        raise GeneratorError(f"Unknown embedding dimension for embedding type: {emb.type}")
+    return dim
 
 
 # ─── Generator stages ─────────────────────────────────────────────────────────
@@ -381,6 +384,27 @@ def _render_stages(
 # ─── Public API ───────────────────────────────────────────────────────────────
 
 
+def _unsupported_advanced_errors(config: RAGPipelineConfig) -> list[str]:
+    """Return generation-blocking errors for schema-only advanced features."""
+    adv = config.generation.advanced
+    if adv is None:
+        return []
+
+    errors: list[str] = []
+    checks = (
+        ("crag", adv.crag),
+        ("flare", adv.flare),
+        ("agentic", adv.agentic),
+    )
+    for name, feature in checks:
+        if feature is not None and feature.enabled:
+            errors.append(
+                "Unsupported advanced generation feature: "
+                f"generation.advanced.{name}. Disable it before generating."
+            )
+    return errors
+
+
 def generate(
     config: RAGPipelineConfig,
     template_dir: Path | None = None,
@@ -404,6 +428,14 @@ def generate(
     generated_files: list[GeneratedFile] = []
     all_errors: list[str] = []
     fw = _framework_str(config)
+    unsupported_errors = _unsupported_advanced_errors(config)
+    if unsupported_errors:
+        return GeneratorResult(
+            generated_files=[],
+            validation_passed=False,
+            errors=unsupported_errors,
+            config_yaml=config.to_yaml(),
+        )
 
     base_ctx: dict = {
         "config":        config,

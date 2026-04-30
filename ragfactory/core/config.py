@@ -807,7 +807,7 @@ LLMConfig = Annotated[
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Generation — Advanced (CRAG, FLARE, Agentic)
+# Generation — Advanced (schema only in this release)
 # ─────────────────────────────────────────────────────────────────────────────
 
 
@@ -839,7 +839,7 @@ class CRAGConfig(StrictModel):
         description="Trigger web search when retrieval is low-confidence. Adds ~1-3s latency.",
     )
     web_search_provider: Literal["tavily", "serper", "duckduckgo"] = "tavily"
-    # API keys from env: TAVILY_API_KEY | SERPER_API_KEY
+    # Parsed for future CRAG support; generation rejects enabled CRAG in this release.
 
 
 class FLAREConfig(StrictModel):
@@ -875,7 +875,7 @@ class AgenticConfig(StrictModel):
 
 
 class AdvancedGenerationConfig(StrictModel):
-    """Advanced generation techniques. At most one should be enabled at a time."""
+    """Advanced generation options parsed by the schema but blocked by generation."""
 
     crag: CRAGConfig | None = None
     flare: FLAREConfig | None = None

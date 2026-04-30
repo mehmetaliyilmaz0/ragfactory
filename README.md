@@ -239,7 +239,7 @@ ragfactory options --json
 | `contextual` | High-recall pipelines | LLM-prepended context per chunk. **+49–67% recall** (Anthropic, 2024). Costs ~$1.02/M tokens. |
 | `late` | Long-form retrieval | Jina Late Chunking. Token-level pooling after full-doc encoding. Requires Jina embeddings. |
 | `page_level` | Structured PDFs | One chunk per page. Good for dense reference material. |
-| `sentence_window` | Fine-grained Q&A | Retrieve at sentence level, expand to surrounding window. |
+| `proposition` | High-precision facts | Extract atomic propositions before indexing. Higher indexing cost. |
 
 ### Embedding models
 
@@ -272,9 +272,10 @@ ragfactory options --json
 | `hybrid_rrf` | **+15–30%** | BM25 + dense via Reciprocal Rank Fusion. Keyword + semantic. |
 | `hybrid_weighted` | +10–25% | BM25 + dense with tunable alpha weight. More control than RRF. |
 | `small_to_big` | +5–15% | Retrieve child chunks, return parent context. Better answer coherence. |
-| `sentence_window` | +5–10% | Retrieve sentence, expand to window. Fine-grained + coherent. |
+| `sentence_window` | +5-10% | Retrieve sentence, expand to window. Native in LlamaIndex; approximated in LangChain. |
 
 > **Compatibility note:** `hybrid_rrf` and `hybrid_weighted` require sparse vector support. ChromaDB and Pinecone fall back to `dense` automatically.
+> `sentence_window` is native in LlamaIndex. LangChain output uses a sentence retrieval plus context-window approximation.
 
 ### Rerankers
 
@@ -325,7 +326,7 @@ framework: langchain                 # langchain | llamaindex
 # ── Indexing ──────────────────────────────────────────────────────────────────
 indexing:
   chunking:
-    type: recursive                  # fixed | recursive | semantic | contextual | late | page_level | sentence_window
+    type: recursive                  # fixed | recursive | semantic | contextual | late | page_level | proposition
     chunk_size: 512                  # tokens per chunk
     chunk_overlap: 50                # overlap between chunks
 
@@ -396,11 +397,12 @@ ragfactory validates every config before generating code. Incompatible combinati
 | `INCOMPAT_HYBRID_RRF_CHROMADB` | ChromaDB has no sparse index — hybrid RRF requires it |
 | `INCOMPAT_HYBRID_WEIGHTED_CHROMADB` | Same constraint for weighted hybrid |
 | `INCOMPAT_HYBRID_RRF_PINECONE` | Hybrid RRF not reliably exposed in Pinecone integrations |
-| `INCOMPAT_SENTENCE_WINDOW_LANGCHAIN` | Sentence Window Retrieval is LlamaIndex-native |
+| `WARN_SENTENCE_WINDOW` | LangChain sentence-window retrieval is generated as an approximation |
 | `INCOMPAT_LATE_OPENAI` | Late chunking requires Jina embeddings, not OpenAI |
 | `INCOMPAT_LATE_BGE_M3` | Late chunking requires Jina embeddings, not BGE-M3 |
-| `INCOMPAT_FLARE_ANTHROPIC` | FLARE requires LLM logprobs; Anthropic doesn't expose them |
-| `INCOMPAT_FLARE_COHERE_LLM` | FLARE incompatible with Cohere LLM (no logprobs) |
+| `UNSUPPORTED_ADVANCED_FLARE` | FLARE config is parsed but code generation is not implemented in this release |
+| `UNSUPPORTED_ADVANCED_CRAG` | CRAG config is parsed but code generation is not implemented in this release |
+| `UNSUPPORTED_ADVANCED_AGENTIC` | Agentic RAG config is parsed but code generation is not implemented in this release |
 | `LATE_CHUNKING_FLAG_NOT_SET` | `chunking.type=late` but `embedding.late_chunking=false` |
 
 ### Warnings

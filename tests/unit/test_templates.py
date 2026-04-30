@@ -841,6 +841,39 @@ class TestEmbeddingStages:
 # ─── Phase 5: VectorDB Stage Templates ───────────────────────────────────────
 
 
+class TestEmbeddingDimensionLookup:
+    def test_nomic_uses_configured_matryoshka_dimensionality(self) -> None:
+        config = _make_config(indexing=IndexingConfig(
+            embedding=NomicEmbeddingConfig(dimensionality=256),
+            vector_db=QdrantConfig(),
+        ))
+        assert _get_embedding_dim(config) == 256
+
+    @pytest.mark.parametrize(
+        ("embedding", "expected_dim"),
+        [
+            (GeminiEmbeddingConfig(model="text-embedding-004"), 768),
+            (GeminiEmbeddingConfig(model="embedding-001"), 768),
+            (VoyageEmbeddingConfig(model="voyage-3-large"), 1024),
+            (VoyageEmbeddingConfig(model="voyage-3"), 1024),
+            (VoyageEmbeddingConfig(model="voyage-3-lite"), 512),
+            (VoyageEmbeddingConfig(model="voyage-code-3"), 1024),
+            (VoyageEmbeddingConfig(model="voyage-finance-2"), 1024),
+            (VoyageEmbeddingConfig(model="voyage-law-2"), 1024),
+        ],
+    )
+    def test_allowed_embedding_models_have_explicit_dimensions(
+        self,
+        embedding: object,
+        expected_dim: int,
+    ) -> None:
+        config = _make_config(indexing=IndexingConfig(
+            embedding=embedding,  # type: ignore[arg-type]
+            vector_db=QdrantConfig(),
+        ))
+        assert _get_embedding_dim(config) == expected_dim
+
+
 def _vectordb_ctx(config: RAGPipelineConfig) -> dict:
     return {
         "config": config,
@@ -1422,8 +1455,8 @@ class TestEnvVarGeneration:
         # env.example should be essentially empty (no API key assignments)
         assert "API_KEY=" not in env
 
-    def test_crag_tavily_has_tavily_key(self) -> None:
-        """CRAG with Tavily → TAVILY_API_KEY in .env.example."""
+    def test_crag_tavily_is_blocked_before_env_generation(self) -> None:
+        """CRAG is schema-parsed but blocked before env template generation."""
         config = RAGPipelineConfig(
             name="crag-test",
             framework="langchain",
@@ -1436,8 +1469,9 @@ class TestEnvVarGeneration:
             ),
         )
         result = generate(config)
-        env = result.files[".env.example"]
-        assert "TAVILY_API_KEY" in env
+        assert result.validation_passed is False
+        assert ".env.example" not in result.files
+        assert any("generation.advanced.crag" in error for error in result.errors)
 
 
 class TestDependencyAccuracy:
@@ -1488,8 +1522,8 @@ class TestDependencyAccuracy:
         )
         assert "sentence-transformers" in self._pyproject(config)
 
-    def test_crag_duckduckgo_has_duckduckgo_dep(self) -> None:
-        """CRAG with duckduckgo → duckduckgo-search in pyproject.toml."""
+    def test_crag_duckduckgo_does_not_advertise_duckduckgo_dep(self) -> None:
+        """Unsupported CRAG must not advertise duckduckgo runtime dependencies."""
         config = RAGPipelineConfig(
             name="t", framework="langchain",
             indexing=IndexingConfig(embedding=OpenAIEmbeddingConfig(), vector_db=QdrantConfig()),
@@ -1500,7 +1534,7 @@ class TestDependencyAccuracy:
                 ),
             ),
         )
-        assert "duckduckgo-search" in self._pyproject(config)
+        assert "duckduckgo-search" not in get_dependencies(config)
 
     def test_ragas_evaluation_has_ragas_dep(self) -> None:
         """Ragas evaluation framework → ragas in pyproject.toml."""
@@ -1716,10 +1750,9 @@ class TestStrictUndefined:
             ),
             generation=GenerationConfig(
                 llm=AnthropicLLMConfig(),
-                advanced=AdvancedGenerationConfig(crag=CRAGConfig(enabled=True)),
             ),
         )
-        # Should not raise — returns a result (possibly with errors, but not an exception)
+        # Should not raise — returns a result with all templates rendered.
         result = generate(config)
         assert result.validation_passed, f"Unexpected errors: {result.errors}"
 

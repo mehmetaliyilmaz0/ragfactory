@@ -14,6 +14,7 @@ from rich.table import Table
 
 import ragfactory
 from ragfactory.core.config import RAGPipelineConfig
+from ragfactory.core.generator import GeneratorResult
 from ragfactory.core.generator import generate as _gen
 from ragfactory.core.validator import ValidationResult
 from ragfactory.core.validator import validate as _val
@@ -47,7 +48,7 @@ _COMPONENTS: dict[str, list[tuple[str, str]]] = {
         ("contextual",      "Prepends LLM context to each chunk. Best recall (+49-67%)."),
         ("late",            "Jina Late Chunking. Token-level pooling after full encoding."),
         ("page_level",      "One chunk per PDF page. Good for structured docs."),
-        ("sentence_window", "Fine-grained sentence retrieval with window expansion."),
+        ("proposition",     "Extracts atomic propositions before indexing. Higher cost."),
     ],
     "embedding": [
         ("openai",  "OpenAI text-embedding-3-small/large. Default 1536d."),
@@ -216,6 +217,17 @@ def _write_output(
     return written
 
 
+def _exit_on_generator_errors(result: GeneratorResult, console: Console) -> None:
+    """Fail CLI commands when the generator returns an error result."""
+    if result.validation_passed and not result.errors:
+        return
+
+    console.print("[red]Generation failed.[/red]")
+    for error in result.errors:
+        console.print(f"  [red]ERROR[/red]  {error}")
+    raise typer.Exit(1)
+
+
 def _print_validation(result: ValidationResult, console: Console) -> None:
     """Print errors (red), warnings (yellow), and infos (blue) via Rich."""
     for issue in result.errors:
@@ -349,6 +361,7 @@ def generate_cmd(
         raise typer.Exit(1)
 
     gen_result = _gen(cfg)
+    _exit_on_generator_errors(gen_result, console)
     out_dir = output if output is not None else Path(cfg.name.replace("/", "-"))
     written = _write_output(gen_result.files, gen_result.config_yaml, out_dir)
 
@@ -369,7 +382,10 @@ def init_cmd(
     chunking: Annotated[
         str,
         typer.Option(
-            help="Chunking strategy: fixed|recursive|semantic|contextual|late|page_level|sentence_window"
+            help=(
+                "Chunking strategy: "
+                "fixed|recursive|semantic|contextual|late|page_level|proposition"
+            )
         ),
     ] = "recursive",
     embedding: Annotated[
@@ -443,6 +459,7 @@ def init_cmd(
 
     # Generate code
     gen_result = _gen(cfg)
+    _exit_on_generator_errors(gen_result, console)
     out_dir = output if output is not None else Path(name.replace("/", "-"))
     written = _write_output(gen_result.files, gen_result.config_yaml, out_dir)
 

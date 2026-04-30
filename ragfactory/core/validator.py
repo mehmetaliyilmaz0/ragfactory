@@ -321,67 +321,32 @@ def _check_contextual_chunking(
         ))
 
 
-def _check_flare_logprobs(
+def _check_unsupported_advanced_generation(
     config: RAGPipelineConfig,
     issues: list[ValidationIssue],
 ) -> None:
-    """
-    FLARE × LLM logprobs check.
-    INCOMPATIBLE already covers Anthropic and Cohere (hard errors).
-    This checker adds a WARNING for Ollama (logprob support is model-dependent).
-    """
-    if not _is_active(config, "generation.advanced.flare"):
-        return
-
-    if config.generation.llm.type == "ollama":
-        model_name = config.generation.llm.model  # type: ignore[union-attr]
-        issues.append(ValidationIssue(
-            severity=ValidationSeverity.WARNING,
-            code="FLARE_OLLAMA_LOGPROBS_UNRELIABLE",
-            message=(
-                f"FLARE requires token-level logprobs. "
-                f"Ollama model '{model_name}' may expose logprobs depending on the model, "
-                "but langchain-ollama and llama-index-llms-ollama do not reliably surface them. "
-                "FLARE will likely fail at runtime. "
-                "Test thoroughly before deploying."
-            ),
-            component_path="generation.llm.type",
-            suggestion="Switch to OpenAI (gpt-4o / gpt-4o-mini) which reliably supports logprobs.",
-        ))
-
-
-def _check_multiple_advanced_techniques(
-    config: RAGPipelineConfig,
-    issues: list[ValidationIssue],
-) -> None:
-    """
-    Warn when more than one advanced generation technique is enabled simultaneously.
-    Combined behaviour (e.g. CRAG + FLARE) is undefined and likely buggy.
-    """
+    """Block advanced generation features whose templates are not implemented."""
     adv = config.generation.advanced
     if adv is None:
         return
 
-    enabled_techniques: list[str] = []
-    if adv.crag is not None and adv.crag.enabled:
-        enabled_techniques.append("crag")
-    if adv.flare is not None and adv.flare.enabled:
-        enabled_techniques.append("flare")
-    if adv.agentic is not None and adv.agentic.enabled:
-        enabled_techniques.append("agentic")
-
-    if len(enabled_techniques) > 1:
-        names = ", ".join(enabled_techniques)
+    checks = (
+        ("crag", adv.crag, "CRAG"),
+        ("flare", adv.flare, "FLARE"),
+        ("agentic", adv.agentic, "agentic RAG"),
+    )
+    for name, feature, label in checks:
+        if feature is None or not feature.enabled:
+            continue
         issues.append(ValidationIssue(
-            severity=ValidationSeverity.WARNING,
-            code="MULTIPLE_ADVANCED_TECHNIQUES",
+            severity=ValidationSeverity.ERROR,
+            code=f"UNSUPPORTED_ADVANCED_{name.upper()}",
             message=(
-                f"Multiple advanced generation techniques enabled simultaneously: {names}. "
-                "Combined behaviour is undefined — at most one should be active at a time. "
-                "Disable all but one."
+                f"generation.advanced.{name} is accepted by the schema, but {label} "
+                "code generation is not implemented in this release."
             ),
-            component_path="generation.advanced",
-            suggestion=f"Keep only one of: {names}.",
+            component_path=f"generation.advanced.{name}",
+            suggestion=f"Remove generation.advanced.{name} or set enabled=false before generating.",
         ))
 
 
@@ -516,8 +481,7 @@ def validate(
     _check_incompatible_pairs(config, issues)
     _check_late_chunking(config, issues)
     _check_contextual_chunking(config, issues)
-    _check_flare_logprobs(config, issues)
-    _check_multiple_advanced_techniques(config, issues)
+    _check_unsupported_advanced_generation(config, issues)
     _check_reranker_top_n(config, issues)
     _check_warnings(config, issues)
     _estimate_costs(config, corpus_tokens, costs)

@@ -27,11 +27,15 @@ from pathlib import Path
 import pytest
 
 from ragfactory.core.config import (
+    AdvancedGenerationConfig,
+    AgenticConfig,
     AnthropicLLMConfig,
     BGEM3EmbeddingConfig,
     ChromaDBConfig,
     CohereRerankerConfig,
+    CRAGConfig,
     DenseRetrievalConfig,
+    FLAREConfig,
     Framework,
     GenerationConfig,
     HybridRRFConfig,
@@ -328,6 +332,28 @@ class TestMissingTemplate:
         # generate() must never raise — always return GeneratorResult
         result = generate(_cfg(), template_dir=Path("/nonexistent"))
         assert isinstance(result, GeneratorResult)
+
+
+class TestUnsupportedAdvancedGeneration:
+    @pytest.mark.parametrize(
+        "advanced",
+        [
+            AdvancedGenerationConfig(crag=CRAGConfig(enabled=True)),
+            AdvancedGenerationConfig(flare=FLAREConfig(enabled=True)),
+            AdvancedGenerationConfig(agentic=AgenticConfig(enabled=True)),
+        ],
+    )
+    def test_unsupported_advanced_generation_returns_error_without_files(
+        self,
+        advanced: AdvancedGenerationConfig,
+    ) -> None:
+        result = generate(
+            _cfg(generation=GenerationConfig(llm=OpenAILLMConfig(), advanced=advanced)),
+            template_dir=STUB_TEMPLATE_DIR,
+        )
+        assert result.validation_passed is False
+        assert result.files == {}
+        assert any("generation.advanced" in error for error in result.errors)
 
 
 # ─── 10. StrictUndefined ──────────────────────────────────────────────────────

@@ -37,6 +37,11 @@ dev = [
     "mypy>=1.10.0",
     "types-PyYAML>=6.0.12",
 ]
+api = [
+    "fastapi>=0.110.0",
+    "uvicorn>=0.28.0",
+    "httpx>=0.27.0",  # for testing
+]
 
 [project.scripts]
 ragfactory = "ragfactory.cli.main:app"

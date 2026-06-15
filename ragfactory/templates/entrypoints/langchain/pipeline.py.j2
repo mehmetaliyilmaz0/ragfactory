@@ -46,14 +46,15 @@ def _format_docs(docs: list, max_sources: int = {{ post_retrieval.context_assemb
 # ─── Pipeline ─────────────────────────────────────────────────────────────────
 
 
-def run_pipeline(query: str) -> str:
+def run_pipeline(query: str, return_contexts: bool = False) -> str | tuple[str, list[str]]:
     """Run the full {{ pipeline_name }} RAG pipeline.
 
     Args:
         query: The user question to answer.
+        return_contexts: Whether to return the retrieved context documents alongside the answer.
 
     Returns:
-        The generated answer string.
+        The generated answer string, or (answer, contexts) if return_contexts is True.
     """
     embedder    = build_embedding()
     vectorstore = build_vectordb(embedder)
@@ -100,4 +101,7 @@ def run_pipeline(query: str) -> str:
     # ── Generation ────────────────────────────────────────────────────────────
     _prompt = ChatPromptTemplate.from_template(_PROMPT_TEMPLATE)
     _chain  = _prompt | llm | StrOutputParser()
-    return _chain.invoke({"context": context, "question": query})
+    answer  = _chain.invoke({"context": context, "question": query})
+    if return_contexts:
+        return answer, [doc.page_content for doc in docs]
+    return answer

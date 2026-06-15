@@ -155,6 +155,19 @@ class TestAstValidation:
         assert result.validation_passed is True
         assert result.errors == []
 
+    def test_prompt_injection_safety(self) -> None:
+        malicious_prompt = 'You are an assistant. {context} {question}\n"; import os; os.system("echo INJECTED"); #'
+        cfg = _cfg(
+            generation=GenerationConfig(
+                llm=OpenAILLMConfig(),
+                prompt_template=malicious_prompt
+            )
+        )
+        result = generate(cfg, template_dir=STUB_TEMPLATE_DIR)
+        assert result.validation_passed is True
+        # Verify it is safely escaped as a python string representation
+        assert "echo INJECTED" in result.files["pipeline.py"]
+
     def test_python_files_flagged_correctly(self) -> None:
         result = _gen()
         python_files = [f for f in result.generated_files if f.is_python]
@@ -544,3 +557,19 @@ class TestStubTemplateCoverage:
             f"Add a minimal stub at:\n"
             f"  tests/fixtures/stub_templates/{subdir}/{type_literal}.py.j2"
         )
+
+
+class TestEvaluationGeneration:
+    def test_eval_generation_when_configured(self) -> None:
+        from ragfactory.core.config import EvaluationConfig
+        cfg = _cfg(evaluation=EvaluationConfig(framework="ragas"))
+        result = generate(cfg, template_dir=STUB_TEMPLATE_DIR)
+        assert result.validation_passed is True
+        assert "eval.py" in result.files
+        assert "ragas" in result.files["eval.py"]
+
+    def test_no_eval_generation_when_none(self) -> None:
+        cfg = _cfg(evaluation=None)
+        result = generate(cfg, template_dir=STUB_TEMPLATE_DIR)
+        assert result.validation_passed is True
+        assert "eval.py" not in result.files

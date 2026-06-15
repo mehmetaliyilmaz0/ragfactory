@@ -38,14 +38,15 @@ _PROMPT_TEMPLATE = {{ generation.prompt_template | tojson_py }}
 # ─── Pipeline ─────────────────────────────────────────────────────────────────
 
 
-def run_pipeline(query: str) -> str:
+def run_pipeline(query: str, return_contexts: bool = False) -> str | tuple[str, list[str]]:
     """Run the full {{ pipeline_name }} RAG pipeline.
 
     Args:
         query: The user question to answer.
+        return_contexts: Whether to return the retrieved context nodes alongside the answer.
 
     Returns:
-        The generated answer string.
+        The generated answer string, or (answer, contexts) if return_contexts is True.
     """
     # Configure LlamaIndex global settings
     Settings.embed_model = build_embedding()
@@ -93,4 +94,7 @@ def run_pipeline(query: str) -> str:
 {% endif %}
 
     response = query_engine.query(query)
+    if return_contexts:
+        contexts = [node.node.get_content() for node in response.source_nodes]
+        return str(response), contexts
     return str(response)

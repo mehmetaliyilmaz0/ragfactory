@@ -103,6 +103,19 @@ class TestValidConstruction:
         assert cfg.version == "1.0"
         assert cfg.framework == "langchain"
 
+    def test_flow_type_defaults_to_linear(self) -> None:
+        cfg = _minimal_config()
+        assert cfg.flow_type == "linear"
+
+    def test_flow_type_accepted_choices(self) -> None:
+        for choice in ["linear", "router", "agentic"]:
+            cfg = _minimal_config(flow_type=choice)
+            assert cfg.flow_type == choice
+
+    def test_flow_type_invalid_choice_raises(self) -> None:
+        with pytest.raises(ValidationError):
+            _minimal_config(flow_type="invalid_flow")
+
     def test_framework_enum_coercion(self) -> None:
         cfg = _minimal_config(framework=Framework.LLAMAINDEX)
         assert cfg.framework == "llamaindex"

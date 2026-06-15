@@ -1,6 +1,7 @@
 # stub: langchain pipeline entrypoint
 FRAMEWORK = "{{ framework }}"
 PIPELINE_NAME = "{{ pipeline_name }}"
+PROMPT_TEMPLATE = {{ generation.prompt_template | to_py_literal }}
 # stages:
 {{ stages.chunking }}
 {{ stages.embedding }}

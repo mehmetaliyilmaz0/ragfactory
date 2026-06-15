@@ -991,6 +991,7 @@ class RAGPipelineConfig(StrictModel):
         description="Pipeline name. Lowercase letters, numbers, and hyphens only.",
     )
     framework: Framework = Framework.LANGCHAIN
+    flow_type: Literal["linear", "router", "agentic"] = "linear"
     ingestion: IngestionConfig = Field(default_factory=IngestionConfig)
     indexing: IndexingConfig
     pre_retrieval: PreRetrievalConfig = Field(default_factory=PreRetrievalConfig)

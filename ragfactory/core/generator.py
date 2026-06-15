@@ -140,11 +140,20 @@ class TemplateLoader:
             trim_blocks=True,
             lstrip_blocks=True,
         )
-        # tojson_py: serialise a Python value to a JSON literal suitable for
-        # embedding inside generated .py files. Unlike Jinja2's built-in tojson,
-        # this filter does NOT escape HTML entities (<, >, &, '), so the output
-        # is a clean Python string literal rather than HTML-safe JSON.
-        self._env.filters["tojson_py"] = lambda v: json.dumps(v, ensure_ascii=False)
+        
+        def to_py_literal(v: Any) -> str:
+            if isinstance(v, str):
+                return repr(v)
+            elif isinstance(v, (list, tuple)):
+                return "[" + ", ".join(to_py_literal(item) for item in v) + "]"
+            elif isinstance(v, dict):
+                return "{" + ", ".join(f"{to_py_literal(k)}: {to_py_literal(val)}" for k, val in v.items()) + "}"
+            elif isinstance(v, bool):
+                return str(v)
+            return repr(v)
+
+        self._env.filters["tojson_py"] = to_py_literal
+        self._env.filters["to_py_literal"] = to_py_literal
 
     def _render(self, template_path: str, ctx: dict) -> str:  # noqa: ANN001
         """Load and render a template by path. Single point for all error handling."""
@@ -454,6 +463,9 @@ def generate(
         # ── Python entrypoints ───────────────────────────────────────────────
         pipeline_py  = loader.render_entrypoint(fw, "pipeline",  entrypoint_ctx)
         ingestion_py = loader.render_entrypoint(fw, "ingestion", entrypoint_ctx)
+        eval_py: str | None = None
+        if config.evaluation is not None:
+            eval_py = loader.render_common("eval.py", {**base_ctx, "evaluation": config.evaluation})
 
         # ── Common files ─────────────────────────────────────────────────────
         env_vars = _collect_required_env_vars(config)
@@ -486,6 +498,8 @@ def generate(
         ("pipeline.py",  pipeline_py),
         ("ingestion.py", ingestion_py),
     ]
+    if eval_py is not None:
+        py_files.append(("eval.py", eval_py))
     non_py_files: list[tuple[str, str]] = [
         ("pyproject.toml", pyproject_toml),
         (".env.example",   env_example),

@@ -82,3 +82,7 @@ CLAUDE.md
 # ─── Internal development notes (not for public consumption) ──────────────────
 AGENTS.md
 RAG_RESEARCH_FINDINGS.md
+
+# ─── Local AI Agent History ───────────────────────────────────────────────────
+.ai_history/
+

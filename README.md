@@ -227,6 +227,88 @@ ragfactory options --json
 
 ---
 
+### `ragfactory api`
+
+Start the FastAPI-based REST API server for programmatic pipeline generation, validation, and JSON schema access.
+
+> [!IMPORTANT]
+> The API server requires the `api` extra dependencies. Make sure to install them first:
+> ```bash
+> pip install "ragfactory[api]"
+> ```
+
+```bash
+# Start the API server on localhost:8000
+ragfactory api
+
+# Specify custom host and port
+ragfactory api --host 0.0.0.0 --port 8080
+```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--host` | `127.0.0.1` | Host to bind the API server to |
+| `--port` | `8000` | Port to bind the API server to |
+
+---
+
+## REST API Server
+
+ragfactory includes a built-in FastAPI REST API server to programmatically validate configurations, generate zip packages, and get the Pydantic JSON schema.
+
+To start the server, run:
+```bash
+pip install "ragfactory[api]"
+ragfactory api
+```
+
+### Endpoints
+
+#### `POST /api/v1/validate`
+Validates a raw JSON configuration payload. Returns compatibility issues and cost estimates.
+
+**Request Body:**
+A standard pipeline configuration in JSON format (equivalent to the YAML structure).
+
+**Response:**
+```json
+{
+  "valid": true,
+  "errors": [],
+  "warnings": [
+    {
+      "code": "WARN_CHROMADB",
+      "message": "ChromaDB is limited to ~7M vectors — prototyping only",
+      "component_path": "indexing.vector_db.type",
+      "suggestion": "Consider Qdrant for production scale."
+    }
+  ],
+  "infos": [],
+  "costs": [
+    {
+      "component": "indexing.chunking",
+      "description": "Contextual chunking",
+      "cost_per_million_tokens": 1.02,
+      "estimated_total": 0.0
+    }
+  ]
+}
+```
+
+#### `POST /api/v1/generate`
+Generates a complete standalone RAG project and returns it as a ZIP archive download.
+
+**Request Body:**
+A standard pipeline configuration in JSON format.
+
+**Response:**
+A binary ZIP file (`application/zip`) containing all scaffolded files (e.g. `pipeline.py`, `ingestion.py`, `pyproject.toml`, etc.).
+
+#### `GET /api/v1/schema`
+Returns the complete JSON Schema of `RAGPipelineConfig`. This is extremely useful for driving dynamic front-end form validation or visual builders.
+
+---
+
 ## Component matrix
 
 ### Chunking strategies
@@ -313,6 +395,17 @@ framework: langchain    # or: llamaindex
 | Sentence Window Retrieval (native) | — | ✓ |
 | Node post-processors | — | ✓ |
 | Streaming support | ✓ | ✓ |
+
+### Agentic RAG flow
+
+When `flow_type: agentic` is set in the configuration, ragfactory generates an event-driven or graph-based agentic pipeline instead of a linear chain:
+
+```yaml
+flow_type: agentic
+```
+
+* **LangChain (LangGraph):** Uses LangGraph's `StateGraph` and `AgentState` to manage execution flow. Implements thread-safe session isolation using `MemorySaver` checkpointer. Every pipeline invocation accepts a `thread_id` to prevent session cross-leakage.
+* **LlamaIndex (Workflows):** Uses LlamaIndex's event-driven `Workflow` architecture. Node actions are marked with `@step` decorators and communicate via `RetrievalEvent`, `StartEvent`, and `StopEvent`. The runtime cleanly wraps asynchronous workflow loops.
 
 ---
 
@@ -402,7 +495,6 @@ ragfactory validates every config before generating code. Incompatible combinati
 | `INCOMPAT_LATE_BGE_M3` | Late chunking requires Jina embeddings, not BGE-M3 |
 | `UNSUPPORTED_ADVANCED_FLARE` | FLARE config is parsed but code generation is not implemented in this release |
 | `UNSUPPORTED_ADVANCED_CRAG` | CRAG config is parsed but code generation is not implemented in this release |
-| `UNSUPPORTED_ADVANCED_AGENTIC` | Agentic RAG config is parsed but code generation is not implemented in this release |
 | `LATE_CHUNKING_FLAG_NOT_SET` | `chunking.type=late` but `embedding.late_chunking=false` |
 
 ### Warnings
@@ -586,11 +678,13 @@ That's it. The script updates `pyproject.toml`, commits, tags, and pushes. GitHu
 ## Roadmap
 
 - [x] Phase 1 — CLI: `generate`, `validate`, `init`, `options`
-- [ ] Phase 2 — REST API (FastAPI): programmatic pipeline generation
+- [x] Phase 2 — REST API (FastAPI): programmatic pipeline generation
 - [ ] Phase 3 — Web UI: visual pipeline builder with live validation
-- [ ] Advanced generation techniques: CRAG, FLARE, Agentic RAG
-- [ ] Evaluation harness: RAGAS and DeepEval integration
-- [ ] Ingestion sources: S3, URLs, Google Drive, Notion
+- [x] Advanced generation techniques: Agentic RAG
+- [ ] Advanced generation techniques: CRAG, FLARE
+- [x] Evaluation harness: RAGAS and DeepEval integration
+- [x] Ingestion sources: S3, URLs
+- [ ] Ingestion sources: Google Drive, Notion
 - [ ] LangGraph multi-agent pipeline support
 - [ ] VS Code extension: config autocomplete + inline validation
 

@@ -293,13 +293,7 @@ EVALUATION_EXTRA_DEPS: dict[str, list[str]] = {
     ],
 }
 
-# ─── Web Search (CRAG) ────────────────────────────────────────────────────────
 
-WEB_SEARCH_DEPS: dict[str, list[str]] = {
-    "tavily": ["tavily-python>=0.3.0,<1.0.0"],
-    "serper": ["google-search-results>=2.4.0"],
-    "duckduckgo": ["duckduckgo-search>=6.0.0,<7.0.0"],
-}
 
 
 # ─── Public API ───────────────────────────────────────────────────────────────
@@ -370,14 +364,5 @@ def get_dependencies(config: object) -> list[str]:  # noqa: ANN001
     if config.evaluation is not None:
         eval_framework = config.evaluation.framework  # str value
         deps.update(EVALUATION_EXTRA_DEPS.get(eval_framework, []))
-
-    # ── CRAG web search extras ────────────────────────────────────────────
-    if (
-        config.generation.advanced is not None
-        and config.generation.advanced.crag is not None
-        and config.generation.advanced.crag.enabled
-    ):
-        provider = config.generation.advanced.crag.web_search_provider
-        deps.update(WEB_SEARCH_DEPS.get(provider, []))
 
     return sorted(deps)

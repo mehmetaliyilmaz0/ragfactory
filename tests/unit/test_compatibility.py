@@ -59,8 +59,8 @@ class TestIncompatiblePairIntegrity:
 
     def test_minimum_count(self) -> None:
         """Guard against accidental truncation of the list."""
-        assert len(INCOMPATIBLE) >= 13, (
-            f"Expected at least 13 incompatible pairs, got {len(INCOMPATIBLE)}"
+        assert len(INCOMPATIBLE) >= 10, (
+            f"Expected at least 10 incompatible pairs, got {len(INCOMPATIBLE)}"
         )
 
 
@@ -97,8 +97,8 @@ class TestCompatibilityWarningIntegrity:
             w.message = "mutated"  # type: ignore[misc]
 
     def test_minimum_count(self) -> None:
-        assert len(WARNINGS) >= 10, (
-            f"Expected at least 10 warnings, got {len(WARNINGS)}"
+        assert len(WARNINGS) >= 9, (
+            f"Expected at least 9 warnings, got {len(WARNINGS)}"
         )
 
 
@@ -124,7 +124,7 @@ class TestCrossFieldRuleIntegrity:
             "late_chunking_jina_v2",
             "contextual_chunking_throughput",
             "contextual_extra_api_key",
-            "multiple_advanced_techniques",
+            "unsupported_advanced_generation",
             "reranker_top_n_vs_top_k",
         }
         missing = required - rule_ids
@@ -277,14 +277,6 @@ class TestKnownIncompatibilities:
             None,
         )
 
-    def test_flare_anthropic_present(self) -> None:
-        pair = self._find("generation.advanced.flare", "generation.llm.anthropic")
-        assert pair is not None, "FLARE × Anthropic incompatibility must be defined"
-        assert "logprob" in pair.reason.lower()
-
-    def test_flare_cohere_present(self) -> None:
-        assert self._find("generation.advanced.flare", "generation.llm.cohere_llm") is not None
-
     def test_late_chunking_openai_present(self) -> None:
         pair = self._find("indexing.chunking.late", "indexing.embedding.openai")
         assert pair is not None
@@ -296,10 +288,8 @@ class TestKnownIncompatibilities:
     def test_hybrid_weighted_pinecone_present(self) -> None:
         assert self._find("retrieval.hybrid_weighted", "indexing.vector_db.pinecone") is not None
 
-    def test_sentence_window_langchain_present(self) -> None:
-        pair = self._find("retrieval.sentence_window", "framework.langchain")
-        assert pair is not None
-        assert "llamaindex" in pair.reason.lower() or "LlamaIndex" in pair.reason
+    def test_sentence_window_langchain_not_hard_blocked(self) -> None:
+        assert self._find("retrieval.sentence_window", "framework.langchain") is None
 
 
 class TestKnownWarnings:

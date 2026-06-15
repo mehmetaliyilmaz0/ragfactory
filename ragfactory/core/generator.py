@@ -72,9 +72,6 @@ _ENV_VAR_MAP: dict[str, list[tuple[str, str]]] = {
     # llm
     "anthropic": [("ANTHROPIC_API_KEY", "Anthropic API key")],
     "cohere_llm":[("COHERE_API_KEY", "Cohere API key")],
-    # web search (CRAG)
-    "tavily":    [("TAVILY_API_KEY", "Tavily Search API key")],
-    "serper":    [("SERPER_API_KEY", "Serper API key")],
     # parsers
     "azure_doc_intelligence": [
         ("AZURE_DOC_INTELLIGENCE_KEY", "Azure Document Intelligence key"),
@@ -229,11 +226,6 @@ def _collect_required_env_vars(config: RAGPipelineConfig) -> list[tuple[str, str
         if provider is not None and supports_contextual_provider_scaffolding(provider):
             _add(provider)
 
-    # CRAG web search
-    adv = config.generation.advanced
-    if adv is not None and adv.crag is not None and adv.crag.enabled:
-        _add(adv.crag.web_search_provider)
-
     # Parser
     if config.ingestion.parser == "azure_doc_intelligence":
         _add("azure_doc_intelligence")
@@ -283,12 +275,16 @@ _EMBEDDING_TYPE_DIMS: dict[str, int] = {
 }
 
 
-def _get_embedding_dim(config: "RAGPipelineConfig") -> int:
+def _get_embedding_dim(config: RAGPipelineConfig) -> int:
     """Return the output vector dimension for the configured embedding model."""
     emb = config.indexing.embedding
     # OpenAIEmbeddingConfig has an explicit dimensions field
     if hasattr(emb, "dimensions") and emb.dimensions is not None:
         return emb.dimensions
+
+    # NomicEmbeddingConfig exposes Matryoshka reduction as dimensionality.
+    if hasattr(emb, "dimensionality"):
+        return emb.dimensionality
 
     emb_type = str(emb.type)
     model_dims = _EMBEDDING_DIMS_BY_PROVIDER.get(emb_type)
@@ -414,6 +410,26 @@ def _render_stages(
 # ─── Public API ───────────────────────────────────────────────────────────────
 
 
+def _unsupported_advanced_errors(config: RAGPipelineConfig) -> list[str]:
+    """Return generation-blocking errors for schema-only advanced features."""
+    adv = config.generation.advanced
+    if adv is None:
+        return []
+
+    errors: list[str] = []
+    checks = (
+        ("crag", adv.crag),
+        ("flare", adv.flare),
+    )
+    for name, feature in checks:
+        if feature is not None and feature.enabled:
+            errors.append(
+                "Unsupported advanced generation feature: "
+                f"generation.advanced.{name}. Disable it before generating."
+            )
+    return errors
+
+
 def generate(
     config: RAGPipelineConfig,
     template_dir: Path | None = None,
@@ -437,6 +453,14 @@ def generate(
     generated_files: list[GeneratedFile] = []
     all_errors: list[str] = []
     fw = _framework_str(config)
+    unsupported_errors = _unsupported_advanced_errors(config)
+    if unsupported_errors:
+        return GeneratorResult(
+            generated_files=[],
+            validation_passed=False,
+            errors=unsupported_errors,
+            config_yaml=config.to_yaml(),
+        )
 
     base_ctx: dict = {
         "config":        config,

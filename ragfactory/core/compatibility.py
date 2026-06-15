@@ -74,31 +74,6 @@ class CrossFieldRule:
 #   "framework.langchain"            → config.framework == "langchain"
 
 INCOMPATIBLE: list[IncompatiblePair] = [
-    # ── FLARE × LLM provider ─────────────────────────────────────────────────
-    # FLARE (Forward-Looking Active Retrieval) monitors per-token generation
-    # confidence and triggers retrieval when probability drops below threshold.
-    # This requires the LLM to expose token-level logprobs — most providers don't.
-    IncompatiblePair(
-        component_a="generation.advanced.flare",
-        component_b="generation.llm.anthropic",
-        reason=(
-            "FLARE requires token-level logprobs to monitor generation confidence. "
-            "The Anthropic API does not expose logprobs. "
-            "Use OpenAI (gpt-4o / gpt-4o-mini) which supports logprobs=True."
-        ),
-        doc_url="https://arxiv.org/abs/2305.06983",
-    ),
-    IncompatiblePair(
-        component_a="generation.advanced.flare",
-        component_b="generation.llm.cohere_llm",
-        reason=(
-            "FLARE requires token-level logprobs. "
-            "Cohere Command-R / Command-R+ does not expose per-token log probabilities "
-            "through its API. Use OpenAI instead."
-        ),
-        doc_url=None,
-    ),
-
     # ── Late Chunking × Embedding provider ───────────────────────────────────
     # Late chunking (Jina AI, 2024) embeds the full document first, then pools
     # token embeddings per chunk span. This is architecturally specific to Jina's
@@ -211,20 +186,6 @@ INCOMPATIBLE: list[IncompatiblePair] = [
         doc_url=None,
     ),
 
-    # ── Sentence Window × Framework ───────────────────────────────────────────
-    # SentenceWindowNodeParser + MetadataReplacementPostProcessor are LlamaIndex-
-    # native patterns. LangChain has no direct equivalent.
-    IncompatiblePair(
-        component_a="retrieval.sentence_window",
-        component_b="framework.langchain",
-        reason=(
-            "Sentence Window Retrieval uses LlamaIndex-native components "
-            "(SentenceWindowNodeParser, MetadataReplacementPostProcessor). "
-            "No equivalent exists in LangChain. "
-            "Switch to framework='llamaindex' or use a different retrieval strategy."
-        ),
-        doc_url=None,
-    ),
 ]
 
 
@@ -253,16 +214,6 @@ WARNINGS: list[CompatibilityWarning] = [
         cost_per_million=2.50,
     ),
     CompatibilityWarning(
-        condition="generation.advanced.agentic",
-        message=(
-            "Agentic RAG uses up to max_reasoning_steps LLM calls per query. "
-            "Expect 3–10x query cost vs. simple RAG. Use only for complex, "
-            "multi-step tasks where accuracy justifies the cost."
-        ),
-        severity=Severity.COST_ALERT,
-        cost_per_million=None,
-    ),
-    CompatibilityWarning(
         condition="evaluation",
         message=(
             "Pipeline evaluation with a judge LLM adds significant cost. "
@@ -274,16 +225,6 @@ WARNINGS: list[CompatibilityWarning] = [
     ),
 
     # Operational warnings
-    CompatibilityWarning(
-        condition="generation.advanced.crag.web_search_fallback",
-        message=(
-            "CRAG web search fallback adds 1–3 seconds latency per low-confidence query. "
-            "Disable web_search_fallback=False in air-gapped or latency-sensitive "
-            "environments."
-        ),
-        severity=Severity.WARNING,
-        cost_per_million=None,
-    ),
     CompatibilityWarning(
         condition="indexing.embedding.bge_m3",
         message=(
@@ -335,6 +276,15 @@ WARNINGS: list[CompatibilityWarning] = [
         severity=Severity.INFO,
         cost_per_million=None,
     ),
+    CompatibilityWarning(
+        condition="retrieval.sentence_window",
+        message=(
+            "Sentence-window retrieval is native in LlamaIndex. LangChain generation "
+            "uses an approximation that retrieves sentences and expands surrounding context."
+        ),
+        severity=Severity.INFO,
+        cost_per_million=None,
+    ),
 ]
 
 
@@ -374,10 +324,10 @@ CROSS_FIELD_RULES: list[CrossFieldRule] = [
         ),
     ),
     CrossFieldRule(
-        rule_id="multiple_advanced_techniques",
+        rule_id="unsupported_advanced_generation",
         description=(
-            "At most one of crag, flare, agentic should be enabled simultaneously. "
-            "Pydantic allows multiple but combined behaviour is undefined. WARNING."
+            "CRAG, FLARE, and agentic RAG are accepted by the schema but blocked "
+            "until generator templates implement them. ERROR when enabled."
         ),
     ),
     CrossFieldRule(

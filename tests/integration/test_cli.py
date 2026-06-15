@@ -19,7 +19,9 @@ import pytest
 import yaml
 from typer.testing import CliRunner
 
+import ragfactory.cli.main as cli_main
 from ragfactory.cli.main import app
+from ragfactory.core.config import RAGPipelineConfig
 from ragfactory.core.generator import GeneratorResult
 
 runner = CliRunner()
@@ -162,24 +164,28 @@ class TestGenerate:
         assert result.exit_code == 1
         assert "not found" in result.output.lower()
 
-    def test_generate_generator_failure_exits_1(
+    def test_generate_exits_1_when_generator_returns_errors(
         self,
         valid_config: Path,
         tmp_path: Path,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        out = tmp_path / "out"
-        monkeypatch.setattr(
-            "ragfactory.cli.main._gen",
-            lambda cfg: GeneratorResult(
+        def fake_generate(config: RAGPipelineConfig) -> GeneratorResult:
+            return GeneratorResult(
+                generated_files=[],
                 validation_passed=False,
-                errors=["synthetic generator failure"],
-                config_yaml="name: broken\n",
-            ),
+                errors=["render exploded"],
+                config_yaml=config.to_yaml(),
+            )
+
+        monkeypatch.setattr(cli_main, "_gen", fake_generate)
+        out = tmp_path / "out"
+        result = runner.invoke(
+            app, ["generate", "--config", str(valid_config), "--output", str(out)]
         )
-        result = runner.invoke(app, ["generate", "--config", str(valid_config), "--output", str(out)])
         assert result.exit_code == 1
-        assert "synthetic generator failure" in result.output
+        assert "Generation failed" in result.output
+        assert "render exploded" in result.output
         assert not out.exists()
 
 
@@ -261,6 +267,30 @@ class TestInit:
         assert result.exception is None
         assert result.exit_code == 0
         assert (out / "pipeline.py").exists()
+
+    def test_init_exits_1_when_generator_returns_errors(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        def fake_generate(config: RAGPipelineConfig) -> GeneratorResult:
+            return GeneratorResult(
+                generated_files=[],
+                validation_passed=False,
+                errors=["template missing"],
+                config_yaml=config.to_yaml(),
+            )
+
+        monkeypatch.setattr(cli_main, "_gen", fake_generate)
+        out = tmp_path / "foo"
+        result = runner.invoke(
+            app,
+            ["init", "--name", "foo", "--vector-db", "chromadb", "--output", str(out)],
+        )
+        assert result.exit_code == 1
+        assert "Generation failed" in result.output
+        assert "template missing" in result.output
+        assert not out.exists()
 
     def test_init_save_config_only(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch

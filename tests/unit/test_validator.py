@@ -4,8 +4,7 @@ Unit tests for ragfactory.core.validator.
 Coverage:
   1. Hard incompatibility ERRORs (from INCOMPATIBLE list)
   2. Cross-field checks (late chunking flags, contextual chunking model)
-  3. FLARE × LLM logprob edge cases
-  4. Multiple advanced techniques warning
+  3. Unsupported advanced generation feature gates
   5. Reranker top_n vs retrieval top_k warning
   6. WARNINGS passthrough (soft warnings → issues)
   7. Cost estimation (with and without corpus_tokens)
@@ -168,7 +167,7 @@ class TestValidationResultStructure:
         assert len(result.warnings) > 0
 
 
-# ─── 2. FLARE × LLM incompatibilities ────────────────────────────────────────
+# ─── 2. Unsupported advanced generation ──────────────────────────────────────
 
 
 def _flare_config(llm: object) -> RAGPipelineConfig:
@@ -180,32 +179,42 @@ def _flare_config(llm: object) -> RAGPipelineConfig:
     )
 
 
-class TestFLAREIncompatibilities:
-    def test_flare_anthropic_is_error(self) -> None:
+class TestUnsupportedAdvancedGeneration:
+    def test_flare_openai_is_unsupported_error(self) -> None:
+        result = validate(_flare_config(OpenAILLMConfig()))
+        assert result.valid is False
+        assert _has_error(result, "UNSUPPORTED_ADVANCED_FLARE")
+
+    def test_flare_anthropic_is_unsupported_error(self) -> None:
         result = validate(_flare_config(AnthropicLLMConfig()))
         assert result.valid is False
-        # Should have an error code containing ANTHROPIC
-        assert any("ANTHROPIC" in i.code for i in result.errors)
+        assert _has_error(result, "UNSUPPORTED_ADVANCED_FLARE")
 
-    def test_flare_openai_is_valid(self) -> None:
-        result = validate(_flare_config(OpenAILLMConfig()))
-        # No FLARE-related errors (OpenAI supports logprobs)
-        assert not any("FLARE" in i.code for i in result.errors)
-
-    def test_flare_cohere_is_error(self) -> None:
-        result = validate(_flare_config(CohereLLMConfig()))
-        assert result.valid is False
-        assert any("COHERE" in i.code for i in result.errors)
-
-    def test_flare_ollama_is_warning_not_error(self) -> None:
+    def test_flare_ollama_is_unsupported_error(self) -> None:
         result = validate(_flare_config(OllamaLLMConfig(model="llama3.2")))
-        # Should NOT be a hard error
-        assert not any(
-            "OLLAMA" in i.code and i.severity == ValidationSeverity.ERROR
-            for i in result.issues
-        )
-        # Should be a WARNING
-        assert _has_warning(result, "FLARE_OLLAMA_LOGPROBS_UNRELIABLE")
+        assert result.valid is False
+        assert _has_error(result, "UNSUPPORTED_ADVANCED_FLARE")
+
+    def test_crag_enabled_is_unsupported_error(self) -> None:
+        result = validate(_cfg(
+            generation=GenerationConfig(
+                llm=OpenAILLMConfig(),
+                advanced=AdvancedGenerationConfig(crag=CRAGConfig(enabled=True)),
+            ),
+        ))
+        assert result.valid is False
+        assert _has_error(result, "UNSUPPORTED_ADVANCED_CRAG")
+
+    def test_agentic_enabled_is_supported_and_valid(self) -> None:
+        result = validate(_cfg(
+            generation=GenerationConfig(
+                llm=OpenAILLMConfig(),
+                advanced=AdvancedGenerationConfig(agentic=AgenticConfig(enabled=True)),
+            ),
+        ))
+        assert result.valid is True
+        assert not any("AGENTIC" in i.code for i in result.errors)
+
 
     def test_flare_disabled_no_issues(self) -> None:
         result = validate(_cfg(
@@ -214,7 +223,6 @@ class TestFLAREIncompatibilities:
                 advanced=AdvancedGenerationConfig(flare=FLAREConfig(enabled=False)),
             ),
         ))
-        # FLARE disabled → no logprob error
         assert not any("FLARE" in i.code for i in result.issues)
 
     def test_flare_none_no_issues(self) -> None:
@@ -362,13 +370,14 @@ class TestHybridSearchVectorDB:
 
 
 class TestSentenceWindowFramework:
-    def test_sentence_window_langchain_is_error(self) -> None:
+    def test_sentence_window_langchain_is_valid_with_info(self) -> None:
         result = validate(_cfg(
             framework=Framework.LANGCHAIN,
             retrieval=SentenceWindowConfig(),
         ))
-        assert result.valid is False
-        assert any("LANGCHAIN" in i.code for i in result.errors)
+        assert result.valid is True
+        assert not any("SENTENCE_WINDOW" in i.code for i in result.errors)
+        assert any("SENTENCE_WINDOW" in i.code for i in result.infos)
 
     def test_sentence_window_llamaindex_is_valid(self) -> None:
         result = validate(_cfg(
@@ -379,32 +388,11 @@ class TestSentenceWindowFramework:
         assert sentence_errors == []
 
 
-# ─── 6. Multiple advanced techniques ─────────────────────────────────────────
+# ─── 6. Advanced generation disabled states ──────────────────────────────────
 
 
-class TestMultipleAdvancedTechniques:
-    def test_crag_only_no_warning(self) -> None:
-        result = validate(_cfg(
-            generation=GenerationConfig(
-                llm=OpenAILLMConfig(),
-                advanced=AdvancedGenerationConfig(crag=CRAGConfig(enabled=True)),
-            ),
-        ))
-        assert not _has_warning(result, "MULTIPLE_ADVANCED_TECHNIQUES")
-
-    def test_crag_and_flare_both_enabled_warns(self) -> None:
-        result = validate(_cfg(
-            generation=GenerationConfig(
-                llm=OpenAILLMConfig(),  # OpenAI so FLARE doesn't add an ERROR too
-                advanced=AdvancedGenerationConfig(
-                    crag=CRAGConfig(enabled=True),
-                    flare=FLAREConfig(enabled=True),
-                ),
-            ),
-        ))
-        assert _has_warning(result, "MULTIPLE_ADVANCED_TECHNIQUES")
-
-    def test_all_three_advanced_warns(self) -> None:
+class TestAdvancedGenerationDisabledStates:
+    def test_all_three_enabled_emit_unsupported_errors_for_crag_and_flare(self) -> None:
         result = validate(_cfg(
             generation=GenerationConfig(
                 llm=OpenAILLMConfig(),
@@ -415,7 +403,9 @@ class TestMultipleAdvancedTechniques:
                 ),
             ),
         ))
-        assert _has_warning(result, "MULTIPLE_ADVANCED_TECHNIQUES")
+        assert _has_error(result, "UNSUPPORTED_ADVANCED_CRAG")
+        assert _has_error(result, "UNSUPPORTED_ADVANCED_FLARE")
+        assert not any("AGENTIC" in i.code for i in result.errors)
 
     def test_all_disabled_no_warning(self) -> None:
         result = validate(_cfg(
@@ -428,11 +418,12 @@ class TestMultipleAdvancedTechniques:
                 ),
             ),
         ))
-        assert not _has_warning(result, "MULTIPLE_ADVANCED_TECHNIQUES")
+        assert result.valid is True
+        assert not any("UNSUPPORTED_ADVANCED" in i.code for i in result.errors)
 
-    def test_advanced_none_no_warning(self) -> None:
+    def test_advanced_none_no_unsupported_error(self) -> None:
         result = validate(_cfg())
-        assert not _has_warning(result, "MULTIPLE_ADVANCED_TECHNIQUES")
+        assert not any("UNSUPPORTED_ADVANCED" in i.code for i in result.errors)
 
 
 # ─── 7. Reranker top_n vs retrieval top_k ────────────────────────────────────
@@ -577,7 +568,7 @@ class TestSoftWarningsPassthrough:
         ))
         assert not any("HYDE" in i.code for i in result.issues)
 
-    def test_crag_web_search_warning(self) -> None:
+    def test_crag_web_search_is_blocked_as_unsupported(self) -> None:
         result = validate(_cfg(
             generation=GenerationConfig(
                 llm=OpenAILLMConfig(),
@@ -586,7 +577,8 @@ class TestSoftWarningsPassthrough:
                 ),
             ),
         ))
-        assert any("WEB_SEARCH" in i.code or "CRAG" in i.code for i in result.issues)
+        assert result.valid is False
+        assert _has_error(result, "UNSUPPORTED_ADVANCED_CRAG")
 
 
 # ─── 10. Cost estimation ──────────────────────────────────────────────────────

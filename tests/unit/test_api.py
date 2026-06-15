@@ -95,6 +95,7 @@ def test_generate_endpoint_valid(client: TestClient) -> None:
         files = zip_file.namelist()
         assert "pipeline.py" in files
         assert "ingestion.py" in files
+        assert "api.py" in files
         assert "pyproject.toml" in files
         assert "config.yaml" in files
         

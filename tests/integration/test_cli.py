@@ -88,7 +88,7 @@ def warning_config(tmp_path: Path) -> Path:
 # ─── generate ─────────────────────────────────────────────────────────────────
 
 _EXPECTED_FILES = {
-    "pipeline.py", "ingestion.py", "pyproject.toml",
+    "pipeline.py", "ingestion.py", "api.py", "pyproject.toml",
     ".env.example", "README.md", "Dockerfile", "config.yaml",
 }
 
@@ -388,3 +388,11 @@ class TestMeta:
         assert "ragfactory" in result.output
         # version string contains a digit
         assert any(ch.isdigit() for ch in result.output)
+
+
+class TestCliApi:
+    def test_api_help_exits_0(self) -> None:
+        result = runner.invoke(app, ["api", "--help"])
+        assert result.exception is None
+        assert result.exit_code == 0
+        assert "Start the RAGFactory REST API server." in result.output

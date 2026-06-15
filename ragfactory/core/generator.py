@@ -461,8 +461,13 @@ def generate(
         }
 
         # ── Python entrypoints ───────────────────────────────────────────────
-        pipeline_py  = loader.render_entrypoint(fw, "pipeline",  entrypoint_ctx)
+        if config.flow_type == "agentic":
+            pipeline_py  = loader.render_entrypoint(fw, "pipeline_agentic",  entrypoint_ctx)
+        else:
+            pipeline_py  = loader.render_entrypoint(fw, "pipeline",  entrypoint_ctx)
+            
         ingestion_py = loader.render_entrypoint(fw, "ingestion", entrypoint_ctx)
+        api_py       = loader.render_common("api.py", base_ctx)
         eval_py: str | None = None
         if config.evaluation is not None:
             eval_py = loader.render_common("eval.py", {**base_ctx, "evaluation": config.evaluation})
@@ -497,6 +502,7 @@ def generate(
     py_files: list[tuple[str, str]] = [
         ("pipeline.py",  pipeline_py),
         ("ingestion.py", ingestion_py),
+        ("api.py",       api_py),
     ]
     if eval_py is not None:
         py_files.append(("eval.py", eval_py))

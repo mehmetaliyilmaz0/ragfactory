@@ -1,0 +1,12 @@
+# stub: langchain pipeline_agentic entrypoint
+FRAMEWORK = "{{ framework }}"
+PIPELINE_NAME = "{{ pipeline_name }}"
+PROMPT_TEMPLATE = {{ generation.prompt_template | to_py_literal }}
+FLOW_TYPE = "{{ config.flow_type }}"
+# stages:
+{{ stages.chunking }}
+{{ stages.embedding }}
+{{ stages.vectordb }}
+{{ stages.retrieval }}
+{% if stages.reranker is defined and stages.reranker %}{{ stages.reranker }}{% endif %}
+{{ stages.llm }}

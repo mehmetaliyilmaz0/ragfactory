@@ -573,3 +573,32 @@ class TestEvaluationGeneration:
         result = generate(cfg, template_dir=STUB_TEMPLATE_DIR)
         assert result.validation_passed is True
         assert "eval.py" not in result.files
+
+
+class TestAgenticGeneration:
+    def test_agentic_flow_generates_correct_template(self) -> None:
+        cfg = _cfg(flow_type="agentic")
+        result = generate(cfg, template_dir=STUB_TEMPLATE_DIR)
+        assert result.validation_passed is True
+        assert "pipeline.py" in result.files
+        assert "pipeline_agentic" in result.files["pipeline.py"]
+
+    def test_agentic_flow_generates_correct_template_llamaindex(self) -> None:
+        cfg = _cfg(framework="llamaindex", flow_type="agentic")
+        result = generate(cfg, template_dir=STUB_TEMPLATE_DIR)
+        assert result.validation_passed is True
+        assert "pipeline.py" in result.files
+        assert "pipeline_agentic" in result.files["pipeline.py"]
+
+    def test_agentic_dependencies_langchain(self) -> None:
+        from ragfactory.core.versions import get_dependencies
+        cfg = _cfg(framework="langchain", flow_type="agentic")
+        deps = get_dependencies(cfg)
+        assert any(d.startswith("langgraph") for d in deps)
+
+    def test_agentic_dependencies_llamaindex(self) -> None:
+        from ragfactory.core.versions import get_dependencies
+        cfg = _cfg(framework="llamaindex", flow_type="agentic")
+        deps = get_dependencies(cfg)
+        assert not any(d.startswith("langgraph") for d in deps)
+

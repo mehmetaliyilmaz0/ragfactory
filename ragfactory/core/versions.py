@@ -40,6 +40,8 @@ DEPENDENCY_MATRIX: dict[str, dict[str, dict[str, list[str]]]] = {
                 "langchain-core>=0.3.0,<0.4.0",
                 "langchain-community>=0.3.0,<0.4.0",
                 "langchain-text-splitters>=0.3.0,<0.4.0",
+                "fastapi>=0.110.0",
+                "uvicorn>=0.28.0",
             ]
         },
         "embedding": {
@@ -139,6 +141,8 @@ DEPENDENCY_MATRIX: dict[str, dict[str, dict[str, list[str]]]] = {
             "_": [
                 "llama-index>=0.11.0,<0.12.0",
                 "llama-index-core>=0.11.0,<0.12.0",
+                "fastapi>=0.110.0",
+                "uvicorn>=0.28.0",
             ]
         },
         "embedding": {
@@ -328,6 +332,10 @@ def get_dependencies(config: object) -> list[str]:  # noqa: ANN001
 
     # ── Base framework packages ────────────────────────────────────────────
     deps.update(matrix["base"]["_"])
+
+    # ── Agentic Flow packages ──────────────────────────────────────────────
+    if config.flow_type == "agentic" and framework == "langchain":
+        deps.add("langgraph>=0.1.0,<0.2.0")
 
     # ── Embedding ─────────────────────────────────────────────────────────
     emb_type = config.indexing.embedding.type

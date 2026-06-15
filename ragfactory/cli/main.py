@@ -538,5 +538,33 @@ def init_cmd(
     _print_file_summary(written, console)
 
 
+@app.command(name="api")
+def api_cmd(
+    host: Annotated[
+        str,
+        typer.Option("--host", help="Host to bind the API server to."),
+    ] = "127.0.0.1",
+    port: Annotated[
+        int,
+        typer.Option("--port", help="Port to bind the API server to."),
+    ] = 8000,
+) -> None:
+    """Start the RAGFactory REST API server."""
+    try:
+        import uvicorn
+        from ragfactory.api.main import app as api_app  # noqa: F401
+    except ImportError:
+        typer.echo(
+            "Error: API dependencies not found.\n"
+            "Please install ragfactory with the [api] extra:\n"
+            "  pip install \"ragfactory[api]\"",
+            err=True,
+        )
+        raise typer.Exit(1)
+
+    typer.echo(f"Starting RAGFactory API server at http://{host}:{port}")
+    uvicorn.run("ragfactory.api.main:app", host=host, port=port, log_level="info")
+
+
 if __name__ == "__main__":
     app()

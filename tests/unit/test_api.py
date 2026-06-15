@@ -1,10 +1,12 @@
 """Unit tests for the RAGFactory FastAPI service."""
+
 from __future__ import annotations
 
 import io
 import zipfile
-from fastapi.testclient import TestClient
+
 import pytest
+from fastapi.testclient import TestClient
 
 from ragfactory.api.main import app
 
@@ -88,7 +90,7 @@ def test_generate_endpoint_valid(client: TestClient) -> None:
     response = client.post("/api/v1/generate", json=valid_config)
     assert response.status_code == 200
     assert response.headers["content-type"] == "application/zip"
-    
+
     # Verify zip content
     zip_bytes = response.content
     with zipfile.ZipFile(io.BytesIO(zip_bytes)) as zip_file:
@@ -98,7 +100,7 @@ def test_generate_endpoint_valid(client: TestClient) -> None:
         assert "api.py" in files
         assert "pyproject.toml" in files
         assert "config.yaml" in files
-        
+
         pipeline_content = zip_file.read("pipeline.py").decode("utf-8")
         assert "run_pipeline" in pipeline_content
         # Verify return_contexts is present in generated signature
@@ -113,7 +115,7 @@ def test_generate_endpoint_invalid(client: TestClient) -> None:
             "embedding": {"type": "openai"},
             "vector_db": {"type": "chromadb"},
         },
-        "retrieval": {"type": "hybrid_rrf"}, # incompat
+        "retrieval": {"type": "hybrid_rrf"},  # incompat
         "generation": {"llm": {"type": "openai"}},
     }
     response = client.post("/api/v1/generate", json=incompat_config)

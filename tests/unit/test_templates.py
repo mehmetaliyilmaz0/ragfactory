@@ -33,8 +33,8 @@ from ragfactory.core.config import (
     BGEM3EmbeddingConfig,
     ChromaDBConfig,
     CohereEmbeddingConfig,
-    CohereRerankerConfig,
     CohereLLMConfig,
+    CohereRerankerConfig,
     ColBERTRerankerConfig,
     ContextualChunkingConfig,
     CRAGConfig,
@@ -73,10 +73,10 @@ from ragfactory.core.config import (
     WeaviateConfig,
 )
 from ragfactory.core.generator import (
-    GeneratorResult,
-    TemplateLoader,
     _DEFAULT_TEMPLATE_DIR,
     _EXTERNAL_SERVICE_DBS,
+    GeneratorResult,
+    TemplateLoader,
     _collect_required_env_vars,
     _get_embedding_dim,
     generate,
@@ -345,27 +345,29 @@ def _stage_stubs() -> dict[str, str]:
     Python fragments so the entrypoint template renders syntactically correct code.
     """
     return {
-        "chunking":  "def build_chunking() -> Any:\n    return None",
+        "chunking": "def build_chunking() -> Any:\n    return None",
         "embedding": "def build_embedding() -> Any:\n    return None",
-        "vectordb":  "def build_vectordb(embedder: Any) -> Any:\n    return None",
+        "vectordb": "def build_vectordb(embedder: Any) -> Any:\n    return None",
         "retrieval": "def build_retrieval(vectorstore: Any) -> Any:\n    return None",
-        "llm":       "def build_llm() -> Any:\n    return None",
+        "llm": "def build_llm() -> Any:\n    return None",
     }
 
 
-def _entrypoint_ctx(config: RAGPipelineConfig, stages: dict[str, str] | None = None) -> dict[str, Any]:
+def _entrypoint_ctx(
+    config: RAGPipelineConfig, stages: dict[str, str] | None = None
+) -> dict[str, Any]:
     """Build context for pipeline.py.j2 / ingestion.py.j2."""
     return {
-        "config":         config,
-        "framework":      str(config.framework),
-        "pipeline_name":  config.name,
-        "dependencies":   get_dependencies(config),
+        "config": config,
+        "framework": str(config.framework),
+        "pipeline_name": config.name,
+        "dependencies": get_dependencies(config),
         "python_version": "3.11",
-        "stages":         stages if stages is not None else _stage_stubs(),
-        "pre_retrieval":  config.pre_retrieval,
+        "stages": stages if stages is not None else _stage_stubs(),
+        "pre_retrieval": config.pre_retrieval,
         "post_retrieval": config.post_retrieval,
-        "generation":     config.generation,
-        "ingestion":      config.ingestion,
+        "generation": config.generation,
+        "ingestion": config.ingestion,
     }
 
 
@@ -387,22 +389,34 @@ class TestLangChainEntrypoints:
     def test_langchain_pipeline_embeds_stage_functions(self) -> None:
         config = _make_config(framework="langchain")
         rendered = _loader().render_entrypoint("langchain", "pipeline", _entrypoint_ctx(config))
-        for fn in ("build_chunking", "build_embedding", "build_vectordb",
-                   "build_retrieval", "build_llm"):
+        for fn in (
+            "build_chunking",
+            "build_embedding",
+            "build_vectordb",
+            "build_retrieval",
+            "build_llm",
+        ):
             assert fn in rendered, f"Stage function {fn!r} missing from pipeline.py"
 
     def test_langchain_pipeline_no_reranker_by_default(self) -> None:
         """When reranker is absent from stages, build_reranker must not appear."""
         config = _make_config(framework="langchain")
         stubs = _stage_stubs()  # no "reranker" key
-        rendered = _loader().render_entrypoint("langchain", "pipeline", _entrypoint_ctx(config, stubs))
+        rendered = _loader().render_entrypoint(
+            "langchain", "pipeline", _entrypoint_ctx(config, stubs)
+        )
         assert "build_reranker" not in rendered
 
     def test_langchain_pipeline_includes_reranker_when_present(self) -> None:
         """When reranker stage is in context, build_reranker() must be called."""
         config = _make_config(framework="langchain")
-        stubs = {**_stage_stubs(), "reranker": "def build_reranker(retriever: Any) -> Any:\n    return retriever"}
-        rendered = _loader().render_entrypoint("langchain", "pipeline", _entrypoint_ctx(config, stubs))
+        stubs = {
+            **_stage_stubs(),
+            "reranker": "def build_reranker(retriever: Any) -> Any:\n    return retriever",
+        }
+        rendered = _loader().render_entrypoint(
+            "langchain", "pipeline", _entrypoint_ctx(config, stubs)
+        )
         assert "build_reranker" in rendered
 
     def test_langchain_pipeline_has_prompt_template(self) -> None:
@@ -416,6 +430,7 @@ class TestLangChainEntrypoints:
     def test_langchain_pipeline_query_rewriting_block(self) -> None:
         """When query_rewriting.enabled=True, the rewriting code block is present."""
         from ragfactory.core.config import PreRetrievalConfig, QueryRewritingConfig
+
         config = _make_config(
             framework="langchain",
             pre_retrieval=PreRetrievalConfig(query_rewriting=QueryRewritingConfig(enabled=True)),
@@ -426,6 +441,7 @@ class TestLangChainEntrypoints:
     def test_langchain_pipeline_hyde_block(self) -> None:
         """When hyde.enabled=True, the HyDE code block is present."""
         from ragfactory.core.config import HyDEConfig, PreRetrievalConfig
+
         config = _make_config(
             framework="langchain",
             pre_retrieval=PreRetrievalConfig(hyde=HyDEConfig(enabled=True)),
@@ -467,20 +483,29 @@ class TestLlamaIndexEntrypoints:
     def test_llamaindex_pipeline_embeds_stage_functions(self) -> None:
         config = _make_config(framework="llamaindex")
         rendered = _loader().render_entrypoint("llamaindex", "pipeline", _entrypoint_ctx(config))
-        for fn in ("build_chunking", "build_embedding", "build_vectordb",
-                   "build_retrieval", "build_llm"):
+        for fn in (
+            "build_chunking",
+            "build_embedding",
+            "build_vectordb",
+            "build_retrieval",
+            "build_llm",
+        ):
             assert fn in rendered, f"Stage function {fn!r} missing from pipeline.py"
 
     def test_llamaindex_pipeline_no_reranker_by_default(self) -> None:
         config = _make_config(framework="llamaindex")
         stubs = _stage_stubs()
-        rendered = _loader().render_entrypoint("llamaindex", "pipeline", _entrypoint_ctx(config, stubs))
+        rendered = _loader().render_entrypoint(
+            "llamaindex", "pipeline", _entrypoint_ctx(config, stubs)
+        )
         assert "build_reranker" not in rendered
 
     def test_llamaindex_pipeline_includes_reranker_when_present(self) -> None:
         config = _make_config(framework="llamaindex")
         stubs = {**_stage_stubs(), "reranker": "def build_reranker() -> Any:\n    return None"}
-        rendered = _loader().render_entrypoint("llamaindex", "pipeline", _entrypoint_ctx(config, stubs))
+        rendered = _loader().render_entrypoint(
+            "llamaindex", "pipeline", _entrypoint_ctx(config, stubs)
+        )
         assert "build_reranker" in rendered
 
     def test_llamaindex_pipeline_has_prompt_template(self) -> None:
@@ -490,6 +515,7 @@ class TestLlamaIndexEntrypoints:
 
     def test_llamaindex_pipeline_query_rewriting_block(self) -> None:
         from ragfactory.core.config import PreRetrievalConfig, QueryRewritingConfig
+
         config = _make_config(
             framework="llamaindex",
             pre_retrieval=PreRetrievalConfig(query_rewriting=QueryRewritingConfig(enabled=True)),
@@ -499,6 +525,7 @@ class TestLlamaIndexEntrypoints:
 
     def test_llamaindex_pipeline_hyde_block(self) -> None:
         from ragfactory.core.config import HyDEConfig, PreRetrievalConfig
+
         config = _make_config(
             framework="llamaindex",
             pre_retrieval=PreRetrievalConfig(hyde=HyDEConfig(enabled=True)),
@@ -526,12 +553,12 @@ def _chunking_ctx(config: RAGPipelineConfig) -> dict[str, Any]:
     """Build context dict for a chunking stage template."""
     fw = str(config.framework)
     return {
-        "config":         config,
-        "framework":      fw,
-        "pipeline_name":  config.name,
-        "dependencies":   get_dependencies(config),
+        "config": config,
+        "framework": fw,
+        "pipeline_name": config.name,
+        "dependencies": get_dependencies(config),
         "python_version": "3.11",
-        "chunking":       config.indexing.chunking,
+        "chunking": config.indexing.chunking,
     }
 
 
@@ -710,12 +737,12 @@ def _embedding_ctx(config: RAGPipelineConfig) -> dict[str, Any]:
     """Build context dict for an embedding stage template."""
     fw = str(config.framework)
     return {
-        "config":           config,
-        "framework":        fw,
-        "pipeline_name":    config.name,
-        "dependencies":     get_dependencies(config),
-        "python_version":   "3.11",
-        "embedding":        config.indexing.embedding,
+        "config": config,
+        "framework": fw,
+        "pipeline_name": config.name,
+        "dependencies": get_dependencies(config),
+        "python_version": "3.11",
+        "embedding": config.indexing.embedding,
         "is_late_chunking": config.indexing.chunking.type == "late",
     }
 
@@ -727,9 +754,10 @@ class TestEmbeddingStages:
 
     @pytest.mark.parametrize("framework", ["langchain", "llamaindex"])
     def test_openai_embedding_renders(self, framework: str) -> None:
-        config = _make_config(framework=framework, indexing=IndexingConfig(
-            embedding=OpenAIEmbeddingConfig(), vector_db=QdrantConfig()
-        ))
+        config = _make_config(
+            framework=framework,
+            indexing=IndexingConfig(embedding=OpenAIEmbeddingConfig(), vector_db=QdrantConfig()),
+        )
         rendered = _loader().render_stage("embedding", "openai", _embedding_ctx(config))
         assert rendered.strip()
         assert "def build_embedding()" in rendered
@@ -738,9 +766,10 @@ class TestEmbeddingStages:
 
     @pytest.mark.parametrize("framework", ["langchain", "llamaindex"])
     def test_cohere_embedding_renders(self, framework: str) -> None:
-        config = _make_config(framework=framework, indexing=IndexingConfig(
-            embedding=CohereEmbeddingConfig(), vector_db=QdrantConfig()
-        ))
+        config = _make_config(
+            framework=framework,
+            indexing=IndexingConfig(embedding=CohereEmbeddingConfig(), vector_db=QdrantConfig()),
+        )
         rendered = _loader().render_stage("embedding", "cohere", _embedding_ctx(config))
         assert rendered.strip()
         assert "def build_embedding()" in rendered
@@ -749,9 +778,10 @@ class TestEmbeddingStages:
 
     @pytest.mark.parametrize("framework", ["langchain", "llamaindex"])
     def test_voyage_embedding_renders(self, framework: str) -> None:
-        config = _make_config(framework=framework, indexing=IndexingConfig(
-            embedding=VoyageEmbeddingConfig(), vector_db=QdrantConfig()
-        ))
+        config = _make_config(
+            framework=framework,
+            indexing=IndexingConfig(embedding=VoyageEmbeddingConfig(), vector_db=QdrantConfig()),
+        )
         rendered = _loader().render_stage("embedding", "voyage", _embedding_ctx(config))
         assert rendered.strip()
         assert "def build_embedding()" in rendered
@@ -760,9 +790,10 @@ class TestEmbeddingStages:
 
     @pytest.mark.parametrize("framework", ["langchain", "llamaindex"])
     def test_gemini_embedding_renders(self, framework: str) -> None:
-        config = _make_config(framework=framework, indexing=IndexingConfig(
-            embedding=GeminiEmbeddingConfig(), vector_db=QdrantConfig()
-        ))
+        config = _make_config(
+            framework=framework,
+            indexing=IndexingConfig(embedding=GeminiEmbeddingConfig(), vector_db=QdrantConfig()),
+        )
         rendered = _loader().render_stage("embedding", "gemini", _embedding_ctx(config))
         assert rendered.strip()
         assert "def build_embedding()" in rendered
@@ -771,9 +802,10 @@ class TestEmbeddingStages:
 
     @pytest.mark.parametrize("framework", ["langchain", "llamaindex"])
     def test_bge_m3_embedding_renders(self, framework: str) -> None:
-        config = _make_config(framework=framework, indexing=IndexingConfig(
-            embedding=BGEM3EmbeddingConfig(), vector_db=QdrantConfig()
-        ))
+        config = _make_config(
+            framework=framework,
+            indexing=IndexingConfig(embedding=BGEM3EmbeddingConfig(), vector_db=QdrantConfig()),
+        )
         rendered = _loader().render_stage("embedding", "bge_m3", _embedding_ctx(config))
         assert rendered.strip()
         assert "def build_embedding()" in rendered
@@ -782,9 +814,10 @@ class TestEmbeddingStages:
 
     @pytest.mark.parametrize("framework", ["langchain", "llamaindex"])
     def test_nomic_embedding_renders(self, framework: str) -> None:
-        config = _make_config(framework=framework, indexing=IndexingConfig(
-            embedding=NomicEmbeddingConfig(), vector_db=QdrantConfig()
-        ))
+        config = _make_config(
+            framework=framework,
+            indexing=IndexingConfig(embedding=NomicEmbeddingConfig(), vector_db=QdrantConfig()),
+        )
         rendered = _loader().render_stage("embedding", "nomic", _embedding_ctx(config))
         assert rendered.strip()
         assert "def build_embedding()" in rendered
@@ -793,9 +826,10 @@ class TestEmbeddingStages:
 
     @pytest.mark.parametrize("framework", ["langchain", "llamaindex"])
     def test_jina_embedding_renders(self, framework: str) -> None:
-        config = _make_config(framework=framework, indexing=IndexingConfig(
-            embedding=JinaEmbeddingConfig(), vector_db=QdrantConfig()
-        ))
+        config = _make_config(
+            framework=framework,
+            indexing=IndexingConfig(embedding=JinaEmbeddingConfig(), vector_db=QdrantConfig()),
+        )
         rendered = _loader().render_stage("embedding", "jina", _embedding_ctx(config))
         assert rendered.strip()
         assert "def build_embedding()" in rendered
@@ -804,36 +838,48 @@ class TestEmbeddingStages:
 
     def test_openai_dimensions_none(self) -> None:
         """When dimensions=None, the rendered code must not include 'dimensions'."""
-        config = _make_config(framework="langchain", indexing=IndexingConfig(
-            embedding=OpenAIEmbeddingConfig(dimensions=None), vector_db=QdrantConfig()
-        ))
+        config = _make_config(
+            framework="langchain",
+            indexing=IndexingConfig(
+                embedding=OpenAIEmbeddingConfig(dimensions=None), vector_db=QdrantConfig()
+            ),
+        )
         rendered = _loader().render_stage("embedding", "openai", _embedding_ctx(config))
         assert "dimensions" not in rendered
 
     def test_openai_dimensions_set(self) -> None:
         """When dimensions=512, '512' must appear in the rendered code."""
-        config = _make_config(framework="langchain", indexing=IndexingConfig(
-            embedding=OpenAIEmbeddingConfig(dimensions=512), vector_db=QdrantConfig()
-        ))
+        config = _make_config(
+            framework="langchain",
+            indexing=IndexingConfig(
+                embedding=OpenAIEmbeddingConfig(dimensions=512), vector_db=QdrantConfig()
+            ),
+        )
         rendered = _loader().render_stage("embedding", "openai", _embedding_ctx(config))
         assert "512" in rendered
 
     def test_jina_late_chunking_active(self) -> None:
         """When is_late_chunking=True, 'retrieval.passage' must appear in the rendered code."""
-        config = _make_config(framework="langchain", indexing=IndexingConfig(
-            embedding=JinaEmbeddingConfig(late_chunking=True),
-            vector_db=QdrantConfig(),
-            chunking=LateChunkingConfig(),
-        ))
+        config = _make_config(
+            framework="langchain",
+            indexing=IndexingConfig(
+                embedding=JinaEmbeddingConfig(late_chunking=True),
+                vector_db=QdrantConfig(),
+                chunking=LateChunkingConfig(),
+            ),
+        )
         rendered = _loader().render_stage("embedding", "jina", _embedding_ctx(config))
         assert "retrieval.passage" in rendered
 
     def test_jina_late_chunking_inactive(self) -> None:
         """When is_late_chunking=False, 'retrieval.passage' must not appear."""
-        config = _make_config(framework="langchain", indexing=IndexingConfig(
-            embedding=JinaEmbeddingConfig(late_chunking=False),
-            vector_db=QdrantConfig(),
-        ))
+        config = _make_config(
+            framework="langchain",
+            indexing=IndexingConfig(
+                embedding=JinaEmbeddingConfig(late_chunking=False),
+                vector_db=QdrantConfig(),
+            ),
+        )
         rendered = _loader().render_stage("embedding", "jina", _embedding_ctx(config))
         assert "retrieval.passage" not in rendered
 
@@ -843,10 +889,12 @@ class TestEmbeddingStages:
 
 class TestEmbeddingDimensionLookup:
     def test_nomic_uses_configured_matryoshka_dimensionality(self) -> None:
-        config = _make_config(indexing=IndexingConfig(
-            embedding=NomicEmbeddingConfig(dimensionality=256),
-            vector_db=QdrantConfig(),
-        ))
+        config = _make_config(
+            indexing=IndexingConfig(
+                embedding=NomicEmbeddingConfig(dimensionality=256),
+                vector_db=QdrantConfig(),
+            )
+        )
         assert _get_embedding_dim(config) == 256
 
     @pytest.mark.parametrize(
@@ -867,10 +915,12 @@ class TestEmbeddingDimensionLookup:
         embedding: object,
         expected_dim: int,
     ) -> None:
-        config = _make_config(indexing=IndexingConfig(
-            embedding=embedding,  # type: ignore[arg-type]
-            vector_db=QdrantConfig(),
-        ))
+        config = _make_config(
+            indexing=IndexingConfig(
+                embedding=embedding,  # type: ignore[arg-type]
+                vector_db=QdrantConfig(),
+            )
+        )
         assert _get_embedding_dim(config) == expected_dim
 
 
@@ -903,10 +953,12 @@ class TestEmbeddingDimensions:
         embedding: object,
         expected_dim: int,
     ) -> None:
-        config = _make_config(indexing=IndexingConfig(
-            embedding=embedding,  # type: ignore[arg-type]
-            vector_db=ChromaDBConfig(),
-        ))
+        config = _make_config(
+            indexing=IndexingConfig(
+                embedding=embedding,  # type: ignore[arg-type]
+                vector_db=ChromaDBConfig(),
+            )
+        )
         assert _get_embedding_dim(config) == expected_dim
 
 
@@ -920,9 +972,10 @@ class TestVectorDBStages:
 
     @pytest.mark.parametrize("framework", ["langchain", "llamaindex"])
     def test_chromadb_renders(self, framework: str) -> None:
-        config = _make_config(framework=framework, indexing=IndexingConfig(
-            embedding=OpenAIEmbeddingConfig(), vector_db=ChromaDBConfig()
-        ))
+        config = _make_config(
+            framework=framework,
+            indexing=IndexingConfig(embedding=OpenAIEmbeddingConfig(), vector_db=ChromaDBConfig()),
+        )
         rendered = _loader().render_stage("vectordb", "chromadb", _vectordb_ctx(config))
         assert rendered.strip()
         assert "def build_vectordb(embedder" in rendered
@@ -931,9 +984,10 @@ class TestVectorDBStages:
 
     @pytest.mark.parametrize("framework", ["langchain", "llamaindex"])
     def test_qdrant_renders(self, framework: str) -> None:
-        config = _make_config(framework=framework, indexing=IndexingConfig(
-            embedding=OpenAIEmbeddingConfig(), vector_db=QdrantConfig()
-        ))
+        config = _make_config(
+            framework=framework,
+            indexing=IndexingConfig(embedding=OpenAIEmbeddingConfig(), vector_db=QdrantConfig()),
+        )
         rendered = _loader().render_stage("vectordb", "qdrant", _vectordb_ctx(config))
         assert rendered.strip()
         assert "def build_vectordb(embedder" in rendered
@@ -942,9 +996,10 @@ class TestVectorDBStages:
 
     @pytest.mark.parametrize("framework", ["langchain", "llamaindex"])
     def test_pinecone_renders(self, framework: str) -> None:
-        config = _make_config(framework=framework, indexing=IndexingConfig(
-            embedding=OpenAIEmbeddingConfig(), vector_db=PineconeConfig()
-        ))
+        config = _make_config(
+            framework=framework,
+            indexing=IndexingConfig(embedding=OpenAIEmbeddingConfig(), vector_db=PineconeConfig()),
+        )
         rendered = _loader().render_stage("vectordb", "pinecone", _vectordb_ctx(config))
         assert rendered.strip()
         assert "def build_vectordb(embedder" in rendered
@@ -953,9 +1008,10 @@ class TestVectorDBStages:
 
     @pytest.mark.parametrize("framework", ["langchain", "llamaindex"])
     def test_weaviate_renders(self, framework: str) -> None:
-        config = _make_config(framework=framework, indexing=IndexingConfig(
-            embedding=OpenAIEmbeddingConfig(), vector_db=WeaviateConfig()
-        ))
+        config = _make_config(
+            framework=framework,
+            indexing=IndexingConfig(embedding=OpenAIEmbeddingConfig(), vector_db=WeaviateConfig()),
+        )
         rendered = _loader().render_stage("vectordb", "weaviate", _vectordb_ctx(config))
         assert rendered.strip()
         assert "def build_vectordb(embedder" in rendered
@@ -964,9 +1020,10 @@ class TestVectorDBStages:
 
     @pytest.mark.parametrize("framework", ["langchain", "llamaindex"])
     def test_milvus_renders(self, framework: str) -> None:
-        config = _make_config(framework=framework, indexing=IndexingConfig(
-            embedding=OpenAIEmbeddingConfig(), vector_db=MilvusConfig()
-        ))
+        config = _make_config(
+            framework=framework,
+            indexing=IndexingConfig(embedding=OpenAIEmbeddingConfig(), vector_db=MilvusConfig()),
+        )
         rendered = _loader().render_stage("vectordb", "milvus", _vectordb_ctx(config))
         assert rendered.strip()
         assert "def build_vectordb(embedder" in rendered
@@ -975,9 +1032,10 @@ class TestVectorDBStages:
 
     @pytest.mark.parametrize("framework", ["langchain", "llamaindex"])
     def test_pgvector_renders(self, framework: str) -> None:
-        config = _make_config(framework=framework, indexing=IndexingConfig(
-            embedding=OpenAIEmbeddingConfig(), vector_db=PgVectorConfig()
-        ))
+        config = _make_config(
+            framework=framework,
+            indexing=IndexingConfig(embedding=OpenAIEmbeddingConfig(), vector_db=PgVectorConfig()),
+        )
         rendered = _loader().render_stage("vectordb", "pgvector", _vectordb_ctx(config))
         assert rendered.strip()
         assert "def build_vectordb(embedder" in rendered
@@ -1008,18 +1066,20 @@ class TestVectorDBStages:
 
     def test_vectordb_build_fn_takes_embedder(self) -> None:
         """All vectordb templates must have 'def build_vectordb(embedder' signature."""
-        config = _make_config(indexing=IndexingConfig(
-            embedding=OpenAIEmbeddingConfig(), vector_db=QdrantConfig()
-        ))
+        config = _make_config(
+            indexing=IndexingConfig(embedding=OpenAIEmbeddingConfig(), vector_db=QdrantConfig())
+        )
         rendered = _loader().render_stage("vectordb", "qdrant", _vectordb_ctx(config))
         assert "def build_vectordb(embedder" in rendered
 
     def test_qdrant_uses_collection_name(self) -> None:
         """QdrantConfig.collection_name must appear in the rendered output."""
-        config = _make_config(indexing=IndexingConfig(
-            embedding=OpenAIEmbeddingConfig(),
-            vector_db=QdrantConfig(collection_name="my_collection"),
-        ))
+        config = _make_config(
+            indexing=IndexingConfig(
+                embedding=OpenAIEmbeddingConfig(),
+                vector_db=QdrantConfig(collection_name="my_collection"),
+            )
+        )
         rendered = _loader().render_stage("vectordb", "qdrant", _vectordb_ctx(config))
         assert "my_collection" in rendered
 
@@ -1112,9 +1172,10 @@ class TestRetrievalStages:
 
     def test_small_to_big_parent_chunk_size(self) -> None:
         """parent_chunk_size must appear in the rendered output."""
-        config = _make_config(framework="langchain", retrieval=SmallToBigConfig(
-            child_chunk_size=128, parent_chunk_size=512
-        ))
+        config = _make_config(
+            framework="langchain",
+            retrieval=SmallToBigConfig(child_chunk_size=128, parent_chunk_size=512),
+        )
         rendered = _loader().render_stage("retrieval", "small_to_big", _retrieval_ctx(config))
         assert "512" in rendered
 
@@ -1250,7 +1311,9 @@ class TestLLMStages:
 
     @pytest.mark.parametrize("framework", ["langchain", "llamaindex"])
     def test_openai_llm_renders(self, framework: str) -> None:
-        config = _make_config(framework=framework, generation=GenerationConfig(llm=OpenAILLMConfig()))
+        config = _make_config(
+            framework=framework, generation=GenerationConfig(llm=OpenAILLMConfig())
+        )
         rendered = _loader().render_stage("llm", "openai", _llm_ctx(config))
         assert rendered.strip()
         assert "def build_llm()" in rendered
@@ -1259,7 +1322,9 @@ class TestLLMStages:
 
     @pytest.mark.parametrize("framework", ["langchain", "llamaindex"])
     def test_anthropic_llm_renders(self, framework: str) -> None:
-        config = _make_config(framework=framework, generation=GenerationConfig(llm=AnthropicLLMConfig()))
+        config = _make_config(
+            framework=framework, generation=GenerationConfig(llm=AnthropicLLMConfig())
+        )
         rendered = _loader().render_stage("llm", "anthropic", _llm_ctx(config))
         assert rendered.strip()
         assert "def build_llm()" in rendered
@@ -1268,7 +1333,9 @@ class TestLLMStages:
 
     @pytest.mark.parametrize("framework", ["langchain", "llamaindex"])
     def test_cohere_llm_renders(self, framework: str) -> None:
-        config = _make_config(framework=framework, generation=GenerationConfig(llm=CohereLLMConfig()))
+        config = _make_config(
+            framework=framework, generation=GenerationConfig(llm=CohereLLMConfig())
+        )
         rendered = _loader().render_stage("llm", "cohere_llm", _llm_ctx(config))
         assert rendered.strip()
         assert "def build_llm()" in rendered
@@ -1277,7 +1344,9 @@ class TestLLMStages:
 
     @pytest.mark.parametrize("framework", ["langchain", "llamaindex"])
     def test_ollama_llm_renders(self, framework: str) -> None:
-        config = _make_config(framework=framework, generation=GenerationConfig(llm=OllamaLLMConfig()))
+        config = _make_config(
+            framework=framework, generation=GenerationConfig(llm=OllamaLLMConfig())
+        )
         rendered = _loader().render_stage("llm", "ollama", _llm_ctx(config))
         assert rendered.strip()
         assert "def build_llm()" in rendered
@@ -1286,9 +1355,7 @@ class TestLLMStages:
 
     def test_llm_temperature_interpolated(self) -> None:
         """temperature config value must appear in the rendered LLM output."""
-        config = _make_config(
-            generation=GenerationConfig(llm=OpenAILLMConfig(temperature=0.3))
-        )
+        config = _make_config(generation=GenerationConfig(llm=OpenAILLMConfig(temperature=0.3)))
         rendered = _loader().render_stage("llm", "openai", _llm_ctx(config))
         assert "0.3" in rendered
 
@@ -1302,17 +1369,13 @@ class TestLLMStages:
 
     def test_ollama_model_name_interpolated(self) -> None:
         """model name must appear in the rendered Ollama output."""
-        config = _make_config(
-            generation=GenerationConfig(llm=OllamaLLMConfig(model="mistral"))
-        )
+        config = _make_config(generation=GenerationConfig(llm=OllamaLLMConfig(model="mistral")))
         rendered = _loader().render_stage("llm", "ollama", _llm_ctx(config))
         assert "mistral" in rendered
 
     def test_openai_llm_max_tokens_interpolated(self) -> None:
         """max_tokens must appear in the rendered OpenAI LLM output."""
-        config = _make_config(
-            generation=GenerationConfig(llm=OpenAILLMConfig(max_tokens=4096))
-        )
+        config = _make_config(generation=GenerationConfig(llm=OpenAILLMConfig(max_tokens=4096)))
         rendered = _loader().render_stage("llm", "openai", _llm_ctx(config))
         assert "4096" in rendered
 
@@ -1342,7 +1405,14 @@ class TestEndToEnd:
     no errors, and key content across 8 representative configurations.
     """
 
-    _EXPECTED_FILES = {"pipeline.py", "ingestion.py", "pyproject.toml", ".env.example", "README.md", "Dockerfile"}
+    _EXPECTED_FILES = {
+        "pipeline.py",
+        "ingestion.py",
+        "pyproject.toml",
+        ".env.example",
+        "README.md",
+        "Dockerfile",
+    }
 
     def _assert_valid(self, result: GeneratorResult) -> None:
         assert result.validation_passed, f"Validation failed: {result.errors}"
@@ -1440,13 +1510,17 @@ class TestEnvVarGeneration:
     """
 
     def _env_example(self, **kwargs: Any) -> str:
-        config = RAGPipelineConfig(**{
-            "name": "env-test",
-            "framework": "langchain",
-            "indexing": IndexingConfig(embedding=OpenAIEmbeddingConfig(), vector_db=ChromaDBConfig()),
-            "generation": GenerationConfig(llm=OllamaLLMConfig()),
-            **kwargs,
-        })  # type: ignore[arg-type]
+        config = RAGPipelineConfig(
+            **{
+                "name": "env-test",
+                "framework": "langchain",
+                "indexing": IndexingConfig(
+                    embedding=OpenAIEmbeddingConfig(), vector_db=ChromaDBConfig()
+                ),
+                "generation": GenerationConfig(llm=OllamaLLMConfig()),
+                **kwargs,
+            }
+        )  # type: ignore[arg-type]
         result = generate(config)
         return result.files[".env.example"]
 
@@ -1466,9 +1540,7 @@ class TestEnvVarGeneration:
 
     def test_anthropic_llm_has_anthropic_key(self) -> None:
         """Anthropic LLM → ANTHROPIC_API_KEY in .env.example."""
-        env = self._env_example(
-            generation=GenerationConfig(llm=AnthropicLLMConfig())
-        )
+        env = self._env_example(generation=GenerationConfig(llm=AnthropicLLMConfig()))
         assert "ANTHROPIC_API_KEY" in env
 
     def test_anthropic_not_duplicated_with_contextual_chunking(self) -> None:
@@ -1547,7 +1619,8 @@ class TestDependencyAccuracy:
     def test_langchain_openai_has_langchain_openai_dep(self) -> None:
         """LangChain + OpenAI → langchain-openai in pyproject.toml."""
         config = RAGPipelineConfig(
-            name="t", framework="langchain",
+            name="t",
+            framework="langchain",
             indexing=IndexingConfig(embedding=OpenAIEmbeddingConfig(), vector_db=QdrantConfig()),
             generation=GenerationConfig(llm=OpenAILLMConfig()),
         )
@@ -1556,7 +1629,8 @@ class TestDependencyAccuracy:
     def test_llamaindex_cohere_has_cohere_embedding_dep(self) -> None:
         """LlamaIndex + Cohere embedding → llama-index-embeddings-cohere in pyproject.toml."""
         config = RAGPipelineConfig(
-            name="t", framework="llamaindex",
+            name="t",
+            framework="llamaindex",
             indexing=IndexingConfig(embedding=CohereEmbeddingConfig(), vector_db=QdrantConfig()),
             generation=GenerationConfig(llm=OpenAILLMConfig()),
         )
@@ -1565,7 +1639,8 @@ class TestDependencyAccuracy:
     def test_bge_m3_has_flagembedding_dep(self) -> None:
         """BGE-M3 embedding (any framework) → FlagEmbedding in pyproject.toml."""
         config = RAGPipelineConfig(
-            name="t", framework="langchain",
+            name="t",
+            framework="langchain",
             indexing=IndexingConfig(embedding=BGEM3EmbeddingConfig(), vector_db=QdrantConfig()),
             generation=GenerationConfig(llm=OpenAILLMConfig()),
         )
@@ -1574,7 +1649,8 @@ class TestDependencyAccuracy:
     def test_semantic_chunking_has_sentence_transformers_dep(self) -> None:
         """Semantic chunking → sentence-transformers in pyproject.toml."""
         config = RAGPipelineConfig(
-            name="t", framework="langchain",
+            name="t",
+            framework="langchain",
             indexing=IndexingConfig(
                 embedding=OpenAIEmbeddingConfig(),
                 vector_db=QdrantConfig(),
@@ -1587,7 +1663,8 @@ class TestDependencyAccuracy:
     def test_crag_duckduckgo_does_not_advertise_duckduckgo_dep(self) -> None:
         """Unsupported CRAG must not advertise duckduckgo runtime dependencies."""
         config = RAGPipelineConfig(
-            name="t", framework="langchain",
+            name="t",
+            framework="langchain",
             indexing=IndexingConfig(embedding=OpenAIEmbeddingConfig(), vector_db=QdrantConfig()),
             generation=GenerationConfig(
                 llm=OpenAILLMConfig(),
@@ -1601,7 +1678,8 @@ class TestDependencyAccuracy:
     def test_ragas_evaluation_has_ragas_dep(self) -> None:
         """Ragas evaluation framework → ragas in pyproject.toml."""
         config = RAGPipelineConfig(
-            name="t", framework="langchain",
+            name="t",
+            framework="langchain",
             indexing=IndexingConfig(embedding=OpenAIEmbeddingConfig(), vector_db=QdrantConfig()),
             generation=GenerationConfig(llm=OpenAILLMConfig()),
             evaluation=EvaluationConfig(framework="ragas"),
@@ -1695,9 +1773,7 @@ class TestASTValidation:
 
     def _assert_python_valid(self, config: RAGPipelineConfig) -> None:
         result = generate(config)
-        assert result.validation_passed, (
-            f"AST validation failed for {config.name}: {result.errors}"
-        )
+        assert result.validation_passed, f"AST validation failed for {config.name}: {result.errors}"
         assert result.errors == []
 
     def test_pipeline_py_valid_langchain_full(self) -> None:
@@ -1716,7 +1792,9 @@ class TestASTValidation:
         config = RAGPipelineConfig(
             name="ast-li",
             framework="llamaindex",
-            indexing=IndexingConfig(embedding=JinaEmbeddingConfig(late_chunking=True), vector_db=ChromaDBConfig()),
+            indexing=IndexingConfig(
+                embedding=JinaEmbeddingConfig(late_chunking=True), vector_db=ChromaDBConfig()
+            ),
             retrieval=SentenceWindowConfig(),
             pre_retrieval=PreRetrievalConfig(hyde=HyDEConfig(enabled=True)),
             post_retrieval=PostRetrievalConfig(reranker=CrossEncoderRerankerConfig()),
@@ -1751,7 +1829,8 @@ class TestDockerComposeAbsence:
 
     def test_docker_compose_absent_for_chromadb_regression(self) -> None:
         config = RAGPipelineConfig(
-            name="t", framework="langchain",
+            name="t",
+            framework="langchain",
             indexing=IndexingConfig(embedding=OpenAIEmbeddingConfig(), vector_db=ChromaDBConfig()),
             generation=GenerationConfig(llm=OpenAILLMConfig()),
         )
@@ -1760,7 +1839,8 @@ class TestDockerComposeAbsence:
 
     def test_docker_compose_absent_for_pinecone_regression(self) -> None:
         config = RAGPipelineConfig(
-            name="t", framework="langchain",
+            name="t",
+            framework="langchain",
             indexing=IndexingConfig(embedding=OpenAIEmbeddingConfig(), vector_db=PineconeConfig()),
             generation=GenerationConfig(llm=OpenAILLMConfig()),
         )
@@ -1769,7 +1849,8 @@ class TestDockerComposeAbsence:
 
     def test_docker_compose_present_for_qdrant_regression(self) -> None:
         config = RAGPipelineConfig(
-            name="t", framework="langchain",
+            name="t",
+            framework="langchain",
             indexing=IndexingConfig(embedding=OpenAIEmbeddingConfig(), vector_db=QdrantConfig()),
             generation=GenerationConfig(llm=OpenAILLMConfig()),
         )
@@ -1778,7 +1859,8 @@ class TestDockerComposeAbsence:
 
     def test_docker_compose_present_for_pgvector_regression(self) -> None:
         config = RAGPipelineConfig(
-            name="t", framework="langchain",
+            name="t",
+            framework="langchain",
             indexing=IndexingConfig(embedding=OpenAIEmbeddingConfig(), vector_db=PgVectorConfig()),
             generation=GenerationConfig(llm=OpenAILLMConfig()),
         )
@@ -1794,7 +1876,6 @@ class TestStrictUndefined:
 
     def test_all_stages_render_without_undefined_error(self) -> None:
         """Full generate() on a maximally-featured config must not raise GeneratorError."""
-        from ragfactory.core.generator import GeneratorError
         config = RAGPipelineConfig(
             name="strict-test",
             framework="langchain",
@@ -1849,7 +1930,8 @@ class TestConfigYamlRoundTrip:
 
     def test_roundtrip_langchain_openai_qdrant(self) -> None:
         config = RAGPipelineConfig(
-            name="rt-1", framework="langchain",
+            name="rt-1",
+            framework="langchain",
             indexing=IndexingConfig(embedding=OpenAIEmbeddingConfig(), vector_db=QdrantConfig()),
             generation=GenerationConfig(llm=OpenAILLMConfig()),
         )
@@ -1858,7 +1940,8 @@ class TestConfigYamlRoundTrip:
 
     def test_roundtrip_llamaindex_cohere_pinecone(self) -> None:
         config = RAGPipelineConfig(
-            name="rt-2", framework="llamaindex",
+            name="rt-2",
+            framework="llamaindex",
             indexing=IndexingConfig(embedding=CohereEmbeddingConfig(), vector_db=PineconeConfig()),
             generation=GenerationConfig(llm=CohereLLMConfig()),
         )

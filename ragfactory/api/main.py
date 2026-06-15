@@ -1,4 +1,5 @@
 """RAGFactory REST API — Programmatic validation, generation and JSON schema endpoints."""
+
 from __future__ import annotations
 
 import io

@@ -12,12 +12,11 @@ Design principles:
 
 from __future__ import annotations
 
-from enum import Enum
-from typing import Annotated, Literal, Union
+from enum import StrEnum
+from typing import Annotated, Literal
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
-
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Base
@@ -30,7 +29,7 @@ class StrictModel(BaseModel):
     model_config = ConfigDict(extra="forbid", use_enum_values=True)
 
 
-class Framework(str, Enum):
+class Framework(StrEnum):
     LANGCHAIN = "langchain"
     LLAMAINDEX = "llamaindex"
 
@@ -61,12 +60,12 @@ class URLSourceConfig(StrictModel):
 
 
 SourceConfig = Annotated[
-    Union[FileSourceConfig, S3SourceConfig, URLSourceConfig],
+    FileSourceConfig | S3SourceConfig | URLSourceConfig,
     Field(discriminator="type"),
 ]
 
 
-class ParserType(str, Enum):
+class ParserType(StrEnum):
     DEFAULT = "default"
     UNSTRUCTURED = "unstructured"
     AZURE_DOC_INTELLIGENCE = "azure_doc_intelligence"
@@ -89,7 +88,7 @@ class FixedChunkingConfig(StrictModel):
     chunk_overlap: int = Field(50, ge=0, description="Overlap tokens between adjacent chunks")
 
     @model_validator(mode="after")
-    def _overlap_less_than_size(self) -> "FixedChunkingConfig":
+    def _overlap_less_than_size(self) -> FixedChunkingConfig:
         if self.chunk_overlap >= self.chunk_size:
             raise ValueError(
                 f"chunk_overlap ({self.chunk_overlap}) must be less than "
@@ -108,7 +107,7 @@ class RecursiveChunkingConfig(StrictModel):
     )
 
     @model_validator(mode="after")
-    def _overlap_less_than_size(self) -> "RecursiveChunkingConfig":
+    def _overlap_less_than_size(self) -> RecursiveChunkingConfig:
         if self.chunk_overlap >= self.chunk_size:
             raise ValueError(
                 f"chunk_overlap ({self.chunk_overlap}) must be less than "
@@ -117,7 +116,7 @@ class RecursiveChunkingConfig(StrictModel):
         return self
 
 
-class BreakpointType(str, Enum):
+class BreakpointType(StrEnum):
     PERCENTILE = "percentile"
     STANDARD_DEVIATION = "standard_deviation"
     INTERQUARTILE = "interquartile"
@@ -136,7 +135,12 @@ class SemanticChunkingConfig(StrictModel):
             "depending on breakpoint_threshold_type"
         ),
     )
-    buffer_size: int = Field(1, ge=1, le=5, description="Adjacent sentences to group before comparing")
+    buffer_size: int = Field(
+        1,
+        ge=1,
+        le=5,
+        description="Adjacent sentences to group before comparing",
+    )
     min_chunk_size: int = Field(
         100,
         ge=50,
@@ -185,7 +189,7 @@ class ContextualChunkingConfig(StrictModel):
         return v
 
     @model_validator(mode="after")
-    def _overlap_less_than_size(self) -> "ContextualChunkingConfig":
+    def _overlap_less_than_size(self) -> ContextualChunkingConfig:
         if self.chunk_overlap >= self.chunk_size:
             raise ValueError(
                 f"chunk_overlap ({self.chunk_overlap}) must be less than "
@@ -238,15 +242,13 @@ class PropositionChunkingConfig(StrictModel):
 
 
 ChunkingConfig = Annotated[
-    Union[
-        FixedChunkingConfig,
-        RecursiveChunkingConfig,
-        SemanticChunkingConfig,
-        ContextualChunkingConfig,
-        LateChunkingConfig,
-        PageLevelChunkingConfig,
-        PropositionChunkingConfig,
-    ],
+    FixedChunkingConfig
+    | RecursiveChunkingConfig
+    | SemanticChunkingConfig
+    | ContextualChunkingConfig
+    | LateChunkingConfig
+    | PageLevelChunkingConfig
+    | PropositionChunkingConfig,
     Field(discriminator="type"),
 ]
 
@@ -311,7 +313,10 @@ class BGEM3EmbeddingConfig(StrictModel):
     """
 
     type: Literal["bge_m3"] = "bge_m3"
-    use_fp16: bool = Field(True, description="Half-precision inference (faster, minimal quality loss)")
+    use_fp16: bool = Field(
+        True,
+        description="Half-precision inference (faster, minimal quality loss)",
+    )
     batch_size: int = Field(32, ge=1, le=256)
     # Self-hosted — no API key required
 
@@ -360,15 +365,13 @@ class JinaEmbeddingConfig(StrictModel):
 
 
 EmbeddingConfig = Annotated[
-    Union[
-        OpenAIEmbeddingConfig,
-        CohereEmbeddingConfig,
-        VoyageEmbeddingConfig,
-        GeminiEmbeddingConfig,
-        BGEM3EmbeddingConfig,
-        NomicEmbeddingConfig,
-        JinaEmbeddingConfig,
-    ],
+    OpenAIEmbeddingConfig
+    | CohereEmbeddingConfig
+    | VoyageEmbeddingConfig
+    | GeminiEmbeddingConfig
+    | BGEM3EmbeddingConfig
+    | NomicEmbeddingConfig
+    | JinaEmbeddingConfig,
     Field(discriminator="type"),
 ]
 
@@ -378,7 +381,7 @@ EmbeddingConfig = Annotated[
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-class DistanceMetric(str, Enum):
+class DistanceMetric(StrEnum):
     COSINE = "cosine"
     DOT = "dot"
     EUCLIDEAN = "euclidean"
@@ -443,14 +446,7 @@ class PgVectorConfig(StrictModel):
 
 
 VectorDBConfig = Annotated[
-    Union[
-        ChromaDBConfig,
-        QdrantConfig,
-        PineconeConfig,
-        WeaviateConfig,
-        MilvusConfig,
-        PgVectorConfig,
-    ],
+    ChromaDBConfig | QdrantConfig | PineconeConfig | WeaviateConfig | MilvusConfig | PgVectorConfig,
     Field(discriminator="type"),
 ]
 
@@ -461,7 +457,7 @@ VectorDBConfig = Annotated[
 
 
 class IndexingConfig(StrictModel):
-    chunking: ChunkingConfig = Field(default_factory=RecursiveChunkingConfig)
+    chunking: ChunkingConfig = Field(default_factory=RecursiveChunkingConfig)  # type: ignore[arg-type]
     embedding: EmbeddingConfig
     vector_db: VectorDBConfig
 
@@ -471,7 +467,7 @@ class IndexingConfig(StrictModel):
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-class QueryRewritingStrategy(str, Enum):
+class QueryRewritingStrategy(StrEnum):
     MULTI_QUERY = "multi_query"
     SUB_QUESTION = "sub_question"
     STEP_BACK = "step_back"
@@ -614,7 +610,7 @@ class SmallToBigConfig(StrictModel):
     top_k: int = Field(5, ge=1, le=50)
 
     @model_validator(mode="after")
-    def _parent_larger_than_child(self) -> "SmallToBigConfig":
+    def _parent_larger_than_child(self) -> SmallToBigConfig:
         if self.parent_chunk_size <= self.child_chunk_size:
             raise ValueError(
                 f"parent_chunk_size ({self.parent_chunk_size}) must be greater than "
@@ -631,18 +627,21 @@ class SentenceWindowConfig(StrictModel):
     """
 
     type: Literal["sentence_window"] = "sentence_window"
-    window_size: int = Field(5, ge=1, le=15, description="Sentences on each side of matched sentence")
+    window_size: int = Field(
+        5,
+        ge=1,
+        le=15,
+        description="Sentences on each side of matched sentence",
+    )
     top_k: int = Field(5, ge=1, le=50)
 
 
 RetrievalConfig = Annotated[
-    Union[
-        DenseRetrievalConfig,
-        HybridRRFConfig,
-        HybridWeightedConfig,
-        SmallToBigConfig,
-        SentenceWindowConfig,
-    ],
+    DenseRetrievalConfig
+    | HybridRRFConfig
+    | HybridWeightedConfig
+    | SmallToBigConfig
+    | SentenceWindowConfig,
     Field(discriminator="type"),
 ]
 
@@ -705,17 +704,15 @@ class FlashRankRerankerConfig(StrictModel):
 
 
 RerankerConfig = Annotated[
-    Union[
-        CohereRerankerConfig,
-        CrossEncoderRerankerConfig,
-        ColBERTRerankerConfig,
-        FlashRankRerankerConfig,
-    ],
+    CohereRerankerConfig
+    | CrossEncoderRerankerConfig
+    | ColBERTRerankerConfig
+    | FlashRankRerankerConfig,
     Field(discriminator="type"),
 ]
 
 
-class CompressionMethod(str, Enum):
+class CompressionMethod(StrEnum):
     EXTRACTIVE = "extractive"
     LLM_LINGUA = "llm_lingua"
     SENTENCE_FILTER = "sentence_filter"
@@ -733,7 +730,7 @@ class ContextCompressionConfig(StrictModel):
     max_context_tokens: int = Field(4096, ge=512)
 
 
-class ContextOrderingStrategy(str, Enum):
+class ContextOrderingStrategy(StrEnum):
     RELEVANCE_FIRST = "relevance_first"
     CHRONOLOGICAL = "chronological"
     REVERSE_RELEVANCE = "reverse_relevance"
@@ -749,7 +746,7 @@ class ContextAssemblyConfig(StrictModel):
 class PostRetrievalConfig(StrictModel):
     reranker: RerankerConfig | None = None
     context_compression: ContextCompressionConfig | None = None
-    context_assembly: ContextAssemblyConfig = Field(default_factory=ContextAssemblyConfig)
+    context_assembly: ContextAssemblyConfig = Field(default_factory=ContextAssemblyConfig)  # type: ignore[arg-type]
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -796,12 +793,7 @@ class OllamaLLMConfig(StrictModel):
 
 
 LLMConfig = Annotated[
-    Union[
-        OpenAILLMConfig,
-        AnthropicLLMConfig,
-        CohereLLMConfig,
-        OllamaLLMConfig,
-    ],
+    OpenAILLMConfig | AnthropicLLMConfig | CohereLLMConfig | OllamaLLMConfig,
     Field(discriminator="type"),
 ]
 
@@ -902,8 +894,7 @@ class GenerationConfig(StrictModel):
     prompt_template: str = Field(
         default=_DEFAULT_PROMPT,
         description=(
-            "RAG system prompt template. "
-            "Must contain {context} and {question} placeholders."
+            "RAG system prompt template. Must contain {context} and {question} placeholders."
         ),
     )
     advanced: AdvancedGenerationConfig | None = None
@@ -917,9 +908,7 @@ class GenerationConfig(StrictModel):
         if "{question}" not in v:
             missing.append("{question}")
         if missing:
-            raise ValueError(
-                f"prompt_template missing required placeholders: {missing}"
-            )
+            raise ValueError(f"prompt_template missing required placeholders: {missing}")
         return v
 
 
@@ -928,7 +917,7 @@ class GenerationConfig(StrictModel):
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-class EvalFramework(str, Enum):
+class EvalFramework(StrEnum):
     RAGAS = "ragas"
     DEEPEVAL = "deepeval"
     BOTH = "both"
@@ -995,7 +984,7 @@ class RAGPipelineConfig(StrictModel):
     ingestion: IngestionConfig = Field(default_factory=IngestionConfig)
     indexing: IndexingConfig
     pre_retrieval: PreRetrievalConfig = Field(default_factory=PreRetrievalConfig)
-    retrieval: RetrievalConfig = Field(default_factory=HybridRRFConfig)
+    retrieval: RetrievalConfig = Field(default_factory=HybridRRFConfig)  # type: ignore[arg-type]
     post_retrieval: PostRetrievalConfig = Field(default_factory=PostRetrievalConfig)
     generation: GenerationConfig
     evaluation: EvaluationConfig | None = None
@@ -1017,13 +1006,13 @@ class RAGPipelineConfig(StrictModel):
             f.write(self.to_yaml())
 
     @classmethod
-    def from_yaml(cls, yaml_str: str) -> "RAGPipelineConfig":
+    def from_yaml(cls, yaml_str: str) -> RAGPipelineConfig:
         """Deserialize from YAML string."""
         data = yaml.safe_load(yaml_str)
         return cls.model_validate(data)
 
     @classmethod
-    def from_yaml_file(cls, path: str) -> "RAGPipelineConfig":
+    def from_yaml_file(cls, path: str) -> RAGPipelineConfig:
         """Load from a YAML file path."""
         with open(path, encoding="utf-8") as f:
             return cls.from_yaml(f.read())

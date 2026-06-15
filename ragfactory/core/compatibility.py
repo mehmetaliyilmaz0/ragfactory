@@ -18,15 +18,14 @@ Three data structures:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import Enum
-
+from enum import StrEnum
 
 # ─── Types ────────────────────────────────────────────────────────────────────
 
 
-class Severity(str, Enum):
-    INFO       = "info"        # informational, no action required
-    WARNING    = "warning"     # may cause issues or suboptimal performance
+class Severity(StrEnum):
+    INFO = "info"  # informational, no action required
+    WARNING = "warning"  # may cause issues or suboptimal performance
     COST_ALERT = "cost_alert"  # significant cost implication
 
 
@@ -34,18 +33,18 @@ class Severity(str, Enum):
 class IncompatiblePair:
     """Two components that cannot be used together in a pipeline."""
 
-    component_a: str       # dot-path, e.g. "generation.advanced.flare"
-    component_b: str       # dot-path or "*" for unconditional block
-    reason: str            # human-readable error message
-    doc_url: str | None    # optional upstream issue / docs link
+    component_a: str  # dot-path, e.g. "generation.advanced.flare"
+    component_b: str  # dot-path or "*" for unconditional block
+    reason: str  # human-readable error message
+    doc_url: str | None  # optional upstream issue / docs link
 
 
 @dataclass(frozen=True)
 class CompatibilityWarning:
     """A condition that warrants a warning but does not block generation."""
 
-    condition: str                  # dot-path or compound condition identifier
-    message: str                    # may contain {placeholders} for interpolation
+    condition: str  # dot-path or compound condition identifier
+    message: str  # may contain {placeholders} for interpolation
     severity: Severity
     cost_per_million: float | None  # USD per 1M tokens; None if not cost-related
 
@@ -138,7 +137,6 @@ INCOMPATIBLE: list[IncompatiblePair] = [
         ),
         doc_url=None,
     ),
-
     # ── Hybrid Search × Vector DB ─────────────────────────────────────────────
     # Hybrid search (BM25 + dense) requires the vector DB to support sparse vectors
     # natively, or a separate BM25 index alongside the dense index.
@@ -185,7 +183,6 @@ INCOMPATIBLE: list[IncompatiblePair] = [
         ),
         doc_url=None,
     ),
-
 ]
 
 
@@ -223,7 +220,6 @@ WARNINGS: list[CompatibilityWarning] = [
         severity=Severity.COST_ALERT,
         cost_per_million=None,
     ),
-
     # Operational warnings
     CompatibilityWarning(
         condition="indexing.embedding.bge_m3",
@@ -255,7 +251,6 @@ WARNINGS: list[CompatibilityWarning] = [
         severity=Severity.WARNING,
         cost_per_million=None,
     ),
-
     # Informational
     CompatibilityWarning(
         condition="post_retrieval.reranker.colbert",

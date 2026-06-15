@@ -90,15 +90,23 @@ def warning_config(tmp_path: Path) -> Path:
 # ─── generate ─────────────────────────────────────────────────────────────────
 
 _EXPECTED_FILES = {
-    "pipeline.py", "ingestion.py", "api.py", "pyproject.toml",
-    ".env.example", "README.md", "Dockerfile", "config.yaml",
+    "pipeline.py",
+    "ingestion.py",
+    "api.py",
+    "pyproject.toml",
+    ".env.example",
+    "README.md",
+    "Dockerfile",
+    "config.yaml",
 }
 
 
 class TestGenerate:
     def test_generate_creates_all_files(self, valid_config: Path, tmp_path: Path) -> None:
         out = tmp_path / "out"
-        result = runner.invoke(app, ["generate", "--config", str(valid_config), "--output", str(out)])
+        result = runner.invoke(
+            app, ["generate", "--config", str(valid_config), "--output", str(out)]
+        )
         assert result.exception is None
         assert result.exit_code == 0
         created = {p.name for p in out.iterdir()}
@@ -106,7 +114,9 @@ class TestGenerate:
 
     def test_generate_python_files_parse(self, valid_config: Path, tmp_path: Path) -> None:
         out = tmp_path / "out"
-        result = runner.invoke(app, ["generate", "--config", str(valid_config), "--output", str(out)])
+        result = runner.invoke(
+            app, ["generate", "--config", str(valid_config), "--output", str(out)]
+        )
         assert result.exception is None
         assert result.exit_code == 0
         for py_file in ("pipeline.py", "ingestion.py"):
@@ -115,7 +125,9 @@ class TestGenerate:
 
     def test_generate_config_yaml_written(self, valid_config: Path, tmp_path: Path) -> None:
         out = tmp_path / "out"
-        result = runner.invoke(app, ["generate", "--config", str(valid_config), "--output", str(out)])
+        result = runner.invoke(
+            app, ["generate", "--config", str(valid_config), "--output", str(out)]
+        )
         assert result.exception is None
         assert result.exit_code == 0
         config_file = out / "config.yaml"
@@ -158,9 +170,7 @@ class TestGenerate:
         assert (out / "pipeline.py").exists()
 
     def test_generate_missing_file_exits_1(self, tmp_path: Path) -> None:
-        result = runner.invoke(
-            app, ["generate", "--config", str(tmp_path / "nonexistent.yaml")]
-        )
+        result = runner.invoke(app, ["generate", "--config", str(tmp_path / "nonexistent.yaml")])
         assert result.exit_code == 1
         assert "not found" in result.output.lower()
 
@@ -261,8 +271,17 @@ class TestInit:
         out = tmp_path / "foo"
         result = runner.invoke(
             app,
-            ["init", "--name", "foo", "--vector-db", "chromadb", "--llm", "openai",
-             "--output", str(out)],
+            [
+                "init",
+                "--name",
+                "foo",
+                "--vector-db",
+                "chromadb",
+                "--llm",
+                "openai",
+                "--output",
+                str(out),
+            ],
         )
         assert result.exception is None
         assert result.exit_code == 0
@@ -292,9 +311,7 @@ class TestInit:
         assert "template missing" in result.output
         assert not out.exists()
 
-    def test_init_save_config_only(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_init_save_config_only(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         # --save-config only (no --output) → write YAML, skip code generation
         monkeypatch.chdir(tmp_path)
         save_path = tmp_path / "foo.yaml"
@@ -315,8 +332,7 @@ class TestInit:
         out = tmp_path / "dense-test"
         result = runner.invoke(
             app,
-            ["init", "--name", "dense-test", "--vector-db", "chromadb",
-             "--output", str(out)],
+            ["init", "--name", "dense-test", "--vector-db", "chromadb", "--output", str(out)],
         )
         assert result.exception is None
         assert result.exit_code == 0
@@ -329,8 +345,7 @@ class TestInit:
         out = tmp_path / "hybrid-test"
         result = runner.invoke(
             app,
-            ["init", "--name", "hybrid-test", "--vector-db", "qdrant",
-             "--output", str(out)],
+            ["init", "--name", "hybrid-test", "--vector-db", "qdrant", "--output", str(out)],
         )
         assert result.exception is None
         assert result.exit_code == 0
@@ -339,6 +354,7 @@ class TestInit:
 
 
 # ─── --help / --version ───────────────────────────────────────────────────────
+
 
 class TestInitAdditional:
     def test_init_accepts_proposition_chunking(self, tmp_path: Path) -> None:

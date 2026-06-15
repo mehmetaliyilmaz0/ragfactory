@@ -32,10 +32,10 @@ Template layout (relative to ragfactory/templates/):
 from __future__ import annotations
 
 import ast
-import json
 from dataclasses import dataclass, field
 from importlib.resources import files as _pkg_files
 from pathlib import Path
+from typing import Any
 
 import jinja2
 
@@ -58,20 +58,20 @@ _EXTERNAL_SERVICE_DBS = {"qdrant", "weaviate", "milvus", "pgvector"}
 # API key env vars needed per component type
 _ENV_VAR_MAP: dict[str, list[tuple[str, str]]] = {
     # embedding
-    "openai":    [("OPENAI_API_KEY", "OpenAI API key")],
-    "cohere":    [("COHERE_API_KEY", "Cohere API key")],
-    "voyage":    [("VOYAGE_API_KEY", "Voyage AI API key")],
-    "gemini":    [("GOOGLE_API_KEY", "Google AI API key")],
-    "jina":      [("JINA_API_KEY", "Jina AI API key")],
+    "openai": [("OPENAI_API_KEY", "OpenAI API key")],
+    "cohere": [("COHERE_API_KEY", "Cohere API key")],
+    "voyage": [("VOYAGE_API_KEY", "Voyage AI API key")],
+    "gemini": [("GOOGLE_API_KEY", "Google AI API key")],
+    "jina": [("JINA_API_KEY", "Jina AI API key")],
     # vector db
-    "qdrant":    [("QDRANT_API_KEY", "Qdrant API key (optional for local)")],
-    "pinecone":  [("PINECONE_API_KEY", "Pinecone API key")],
-    "weaviate":  [("WEAVIATE_API_KEY", "Weaviate API key (optional for local)")],
-    "milvus":    [("MILVUS_TOKEN", "Zilliz Cloud token (optional for local Milvus)")],
-    "pgvector":  [("PGVECTOR_CONNECTION_STRING", "PostgreSQL connection string")],
+    "qdrant": [("QDRANT_API_KEY", "Qdrant API key (optional for local)")],
+    "pinecone": [("PINECONE_API_KEY", "Pinecone API key")],
+    "weaviate": [("WEAVIATE_API_KEY", "Weaviate API key (optional for local)")],
+    "milvus": [("MILVUS_TOKEN", "Zilliz Cloud token (optional for local Milvus)")],
+    "pgvector": [("PGVECTOR_CONNECTION_STRING", "PostgreSQL connection string")],
     # llm
     "anthropic": [("ANTHROPIC_API_KEY", "Anthropic API key")],
-    "cohere_llm":[("COHERE_API_KEY", "Cohere API key")],
+    "cohere_llm": [("COHERE_API_KEY", "Cohere API key")],
     # parsers
     "azure_doc_intelligence": [
         ("AZURE_DOC_INTELLIGENCE_KEY", "Azure Document Intelligence key"),
@@ -85,8 +85,8 @@ _ENV_VAR_MAP: dict[str, list[tuple[str, str]]] = {
 
 @dataclass
 class GeneratedFile:
-    path:      str   # relative path, e.g. "pipeline.py"
-    content:   str
+    path: str  # relative path, e.g. "pipeline.py"
+    content: str
     is_python: bool  # True → ast.parse() is run on content
 
 
@@ -102,10 +102,10 @@ class GeneratorResult:
     .config_yaml        — the input config round-tripped to YAML
     """
 
-    generated_files:   list[GeneratedFile] = field(default_factory=list)
+    generated_files: list[GeneratedFile] = field(default_factory=list)
     validation_passed: bool = True
-    errors:            list[str] = field(default_factory=list)
-    config_yaml:       str = ""
+    errors: list[str] = field(default_factory=list)
+    config_yaml: str = ""
 
     @property
     def files(self) -> dict[str, str]:
@@ -137,14 +137,15 @@ class TemplateLoader:
             trim_blocks=True,
             lstrip_blocks=True,
         )
-        
-        def to_py_literal(v: Any) -> str:
+
+        def to_py_literal(v: Any) -> str:  # noqa: ANN401
             if isinstance(v, str):
                 return repr(v)
             elif isinstance(v, (list, tuple)):
                 return "[" + ", ".join(to_py_literal(item) for item in v) + "]"
             elif isinstance(v, dict):
-                return "{" + ", ".join(f"{to_py_literal(k)}: {to_py_literal(val)}" for k, val in v.items()) + "}"
+                items = [f"{to_py_literal(k)}: {to_py_literal(val)}" for k, val in v.items()]
+                return "{" + ", ".join(items) + "}"
             elif isinstance(v, bool):
                 return str(v)
             return repr(v)
@@ -152,7 +153,7 @@ class TemplateLoader:
         self._env.filters["tojson_py"] = to_py_literal
         self._env.filters["to_py_literal"] = to_py_literal
 
-    def _render(self, template_path: str, ctx: dict) -> str:  # noqa: ANN001
+    def _render(self, template_path: str, ctx: dict[str, Any]) -> str:  # noqa: ANN001
         """Load and render a template by path. Single point for all error handling."""
         try:
             return self._env.get_template(template_path).render(ctx)
@@ -168,15 +169,15 @@ class TemplateLoader:
                 "This is a bug in ragfactory templates."
             ) from e
 
-    def render_stage(self, category: str, type_name: str, ctx: dict) -> str:  # noqa: ANN001
+    def render_stage(self, category: str, type_name: str, ctx: dict[str, Any]) -> str:  # noqa: ANN001
         """Render stages/<category>/<type_name>.py.j2"""
         return self._render(f"stages/{category}/{type_name}.py.j2", ctx)
 
-    def render_entrypoint(self, framework: str, name: str, ctx: dict) -> str:  # noqa: ANN001
+    def render_entrypoint(self, framework: str, name: str, ctx: dict[str, Any]) -> str:  # noqa: ANN001
         """Render entrypoints/<framework>/<name>.py.j2"""
         return self._render(f"entrypoints/{framework}/{name}.py.j2", ctx)
 
-    def render_common(self, name: str, ctx: dict) -> str:  # noqa: ANN001
+    def render_common(self, name: str, ctx: dict[str, Any]) -> str:  # noqa: ANN001
         """Render entrypoints/common/<name>.j2"""
         return self._render(f"entrypoints/common/{name}.j2", ctx)
 
@@ -221,7 +222,7 @@ def _collect_required_env_vars(config: RAGPipelineConfig) -> list[tuple[str, str
 
     # Contextual chunking may need an extra API key for the context model
     if config.indexing.chunking.type == "contextual":
-        ctx_model: str = config.indexing.chunking.context_model  # type: ignore[union-attr]
+        ctx_model: str = config.indexing.chunking.context_model
         provider = infer_context_model_provider(ctx_model)
         if provider is not None and supports_contextual_provider_scaffolding(provider):
             _add(provider)
@@ -303,9 +304,7 @@ def _get_embedding_dim(config: RAGPipelineConfig) -> int:
     if emb_type in _EMBEDDING_TYPE_DIMS:
         return _EMBEDDING_TYPE_DIMS[emb_type]
 
-    raise GeneratorError(
-        f"Unsupported embedding.type='{emb_type}' for dimension lookup."
-    )
+    raise GeneratorError(f"Unsupported embedding.type='{emb_type}' for dimension lookup.")
 
 
 # ─── Generator stages ─────────────────────────────────────────────────────────
@@ -317,7 +316,7 @@ def _framework_str(config: RAGPipelineConfig) -> str:
     # a plain str at runtime. The hasattr/.value branch is defensive-only and will
     # not fire under normal operation, but guards against future config schema changes.
     fw = config.framework
-    return fw.value if hasattr(fw, "value") else str(fw)  # type: ignore[union-attr]
+    return fw.value if hasattr(fw, "value") else str(fw)
 
 
 def _render_stages(
@@ -338,11 +337,11 @@ def _render_stages(
       - `config` is passed to stages only for rare cross-cutting reads and
         should be used sparingly — prefer the specific sub-object key.
     """
-    base_ctx: dict = {
-        "config":        config,
-        "framework":     fw,
+    base_ctx: dict[str, Any] = {
+        "config": config,
+        "framework": fw,
         "pipeline_name": config.name,
-        "dependencies":  get_dependencies(config),
+        "dependencies": get_dependencies(config),
         "python_version": "3.11",
     }
 
@@ -370,13 +369,17 @@ def _render_stages(
     stages["vectordb"] = loader.render_stage(
         "vectordb",
         config.indexing.vector_db.type,
-        {**base_ctx, "vector_db": config.indexing.vector_db, "embedding_dim": _get_embedding_dim(config)},
+        {
+            **base_ctx,
+            "vector_db": config.indexing.vector_db,
+            "embedding_dim": _get_embedding_dim(config),
+        },
     )
 
     # 4. Retrieval
     stages["retrieval"] = loader.render_stage(
         "retrieval",
-        config.retrieval.type,  # type: ignore[union-attr]
+        config.retrieval.type,
         {
             **base_ctx,
             "retrieval": config.retrieval,
@@ -462,11 +465,11 @@ def generate(
             config_yaml=config.to_yaml(),
         )
 
-    base_ctx: dict = {
-        "config":        config,
-        "framework":     fw,
+    base_ctx: dict[str, Any] = {
+        "config": config,
+        "framework": fw,
         "pipeline_name": config.name,
-        "dependencies":  get_dependencies(config),
+        "dependencies": get_dependencies(config),
         "python_version": "3.11",
     }
 
@@ -475,35 +478,35 @@ def generate(
         stages = _render_stages(config, loader, fw)
 
         # ── Entrypoint context ───────────────────────────────────────────────
-        entrypoint_ctx: dict = {
+        entrypoint_ctx: dict[str, Any] = {
             **base_ctx,
-            "stages":       stages,
-            "pre_retrieval":  config.pre_retrieval,
+            "stages": stages,
+            "pre_retrieval": config.pre_retrieval,
             "post_retrieval": config.post_retrieval,
-            "generation":     config.generation,
-            "ingestion":      config.ingestion,
+            "generation": config.generation,
+            "ingestion": config.ingestion,
         }
 
         # ── Python entrypoints ───────────────────────────────────────────────
         if config.flow_type == "agentic":
-            pipeline_py  = loader.render_entrypoint(fw, "pipeline_agentic",  entrypoint_ctx)
+            pipeline_py = loader.render_entrypoint(fw, "pipeline_agentic", entrypoint_ctx)
         else:
-            pipeline_py  = loader.render_entrypoint(fw, "pipeline",  entrypoint_ctx)
-            
+            pipeline_py = loader.render_entrypoint(fw, "pipeline", entrypoint_ctx)
+
         ingestion_py = loader.render_entrypoint(fw, "ingestion", entrypoint_ctx)
-        api_py       = loader.render_common("api.py", base_ctx)
+        api_py = loader.render_common("api.py", base_ctx)
         eval_py: str | None = None
         if config.evaluation is not None:
             eval_py = loader.render_common("eval.py", {**base_ctx, "evaluation": config.evaluation})
 
         # ── Common files ─────────────────────────────────────────────────────
         env_vars = _collect_required_env_vars(config)
-        common_ctx: dict = {**base_ctx, "env_vars": env_vars}
+        common_ctx: dict[str, Any] = {**base_ctx, "env_vars": env_vars}
 
         pyproject_toml = loader.render_common("pyproject.toml", common_ctx)
-        env_example    = loader.render_common(".env.example",   common_ctx)
-        readme_md      = loader.render_common("README.md",      common_ctx)
-        dockerfile     = loader.render_common("Dockerfile",     common_ctx)
+        env_example = loader.render_common(".env.example", common_ctx)
+        readme_md = loader.render_common("README.md", common_ctx)
+        dockerfile = loader.render_common("Dockerfile", common_ctx)
 
         # docker-compose.yml only for external-service vector DBs
         docker_compose: str | None = None
@@ -524,17 +527,17 @@ def generate(
 
     # ── Build file list ───────────────────────────────────────────────────────
     py_files: list[tuple[str, str]] = [
-        ("pipeline.py",  pipeline_py),
+        ("pipeline.py", pipeline_py),
         ("ingestion.py", ingestion_py),
-        ("api.py",       api_py),
+        ("api.py", api_py),
     ]
     if eval_py is not None:
         py_files.append(("eval.py", eval_py))
     non_py_files: list[tuple[str, str]] = [
         ("pyproject.toml", pyproject_toml),
-        (".env.example",   env_example),
-        ("README.md",      readme_md),
-        ("Dockerfile",     dockerfile),
+        (".env.example", env_example),
+        ("README.md", readme_md),
+        ("Dockerfile", dockerfile),
     ]
     if docker_compose is not None:
         non_py_files.append(("docker-compose.yml", docker_compose))

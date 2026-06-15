@@ -25,7 +25,7 @@ Usage:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 
 from ragfactory.core._providers import (
     PROVIDER_ENV_VAR,
@@ -38,32 +38,31 @@ from ragfactory.core.config import (
     RAGPipelineConfig,
 )
 
-
 # ─── Output Types ─────────────────────────────────────────────────────────────
 
 
-class ValidationSeverity(str, Enum):
-    ERROR   = "error"    # pipeline will not function at runtime
+class ValidationSeverity(StrEnum):
+    ERROR = "error"  # pipeline will not function at runtime
     WARNING = "warning"  # may cause issues or suboptimal performance
-    INFO    = "info"     # informational, no action required
-    COST    = "cost"     # cost estimation output
+    INFO = "info"  # informational, no action required
+    COST = "cost"  # cost estimation output
 
 
 @dataclass
 class ValidationIssue:
-    severity:       ValidationSeverity
-    code:           str             # machine-readable, e.g. "FLARE_NO_LOGPROBS"
-    message:        str             # human-readable description
-    component_path: str             # dot-path to offending config field
-    suggestion:     str | None = None  # recommended remediation
+    severity: ValidationSeverity
+    code: str  # machine-readable, e.g. "FLARE_NO_LOGPROBS"
+    message: str  # human-readable description
+    component_path: str  # dot-path to offending config field
+    suggestion: str | None = None  # recommended remediation
 
 
 @dataclass
 class CostEstimate:
-    component:               str
-    description:             str
+    component: str
+    description: str
     cost_per_million_tokens: float
-    estimated_total:         float | None  # None when corpus_tokens not provided
+    estimated_total: float | None  # None when corpus_tokens not provided
 
 
 @dataclass
@@ -75,9 +74,9 @@ class ValidationResult:
     Warnings and cost alerts do not affect .valid.
     """
 
-    valid:  bool
+    valid: bool
     issues: list[ValidationIssue] = field(default_factory=list)
-    costs:  list[CostEstimate]    = field(default_factory=list)
+    costs: list[CostEstimate] = field(default_factory=list)
 
     @property
     def errors(self) -> list[ValidationIssue]:
@@ -109,6 +108,7 @@ _COST_TABLE: dict[str, tuple[str, float]] = {
 
 
 # ─── Dot-path resolution ──────────────────────────────────────────────────────
+
 
 def _is_active(config: RAGPipelineConfig, path: str) -> bool:
     """
@@ -143,7 +143,7 @@ def _is_active(config: RAGPipelineConfig, path: str) -> bool:
 
     # ── retrieval ─────────────────────────────────────────────────────────
     if p.startswith("retrieval."):
-        return config.retrieval.type == p.removeprefix("retrieval.")  # type: ignore[union-attr]
+        return config.retrieval.type == p.removeprefix("retrieval.")
 
     # ── pre_retrieval ─────────────────────────────────────────────────────
     if p == "pre_retrieval.hyde":
@@ -196,6 +196,7 @@ def _is_active(config: RAGPipelineConfig, path: str) -> bool:
 
 # ─── Checker functions ────────────────────────────────────────────────────────
 
+
 def _check_incompatible_pairs(
     config: RAGPipelineConfig,
     issues: list[ValidationIssue],
@@ -210,13 +211,15 @@ def _check_incompatible_pairs(
 
             suggestion = pair.doc_url and f"See: {pair.doc_url}"
 
-            issues.append(ValidationIssue(
-                severity=ValidationSeverity.ERROR,
-                code=code,
-                message=pair.reason,
-                component_path=pair.component_a,
-                suggestion=suggestion,
-            ))
+            issues.append(
+                ValidationIssue(
+                    severity=ValidationSeverity.ERROR,
+                    code=code,
+                    message=pair.reason,
+                    component_path=pair.component_a,
+                    suggestion=suggestion,
+                )
+            )
 
 
 def _check_late_chunking(
@@ -237,29 +240,33 @@ def _check_late_chunking(
         return
 
     # At this point embedding IS jina — check model version and flag
-    if emb.model == "jina-embeddings-v2-base-en":  # type: ignore[union-attr]
-        issues.append(ValidationIssue(
-            severity=ValidationSeverity.ERROR,
-            code="LATE_CHUNKING_JINA_V2",
-            message=(
-                "Late chunking requires jina-embeddings-v3 (8K context window). "
-                "jina-embeddings-v2-base-en does not support late chunking."
-            ),
-            component_path="indexing.embedding.model",
-            suggestion="Set embedding.model='jina-embeddings-v3'.",
-        ))
+    if emb.model == "jina-embeddings-v2-base-en":
+        issues.append(
+            ValidationIssue(
+                severity=ValidationSeverity.ERROR,
+                code="LATE_CHUNKING_JINA_V2",
+                message=(
+                    "Late chunking requires jina-embeddings-v3 (8K context window). "
+                    "jina-embeddings-v2-base-en does not support late chunking."
+                ),
+                component_path="indexing.embedding.model",
+                suggestion="Set embedding.model='jina-embeddings-v3'.",
+            )
+        )
 
-    if not emb.late_chunking:  # type: ignore[union-attr]
-        issues.append(ValidationIssue(
-            severity=ValidationSeverity.ERROR,
-            code="LATE_CHUNKING_FLAG_NOT_SET",
-            message=(
-                "chunking.type='late' is selected but embedding.late_chunking=False. "
-                "Set embedding.late_chunking=True to enable late chunking in the Jina API."
-            ),
-            component_path="indexing.embedding.late_chunking",
-            suggestion="Set indexing.embedding.late_chunking=True.",
-        ))
+    if not emb.late_chunking:
+        issues.append(
+            ValidationIssue(
+                severity=ValidationSeverity.ERROR,
+                code="LATE_CHUNKING_FLAG_NOT_SET",
+                message=(
+                    "chunking.type='late' is selected but embedding.late_chunking=False. "
+                    "Set embedding.late_chunking=True to enable late chunking in the Jina API."
+                ),
+                component_path="indexing.embedding.late_chunking",
+                suggestion="Set indexing.embedding.late_chunking=True.",
+            )
+        )
 
 
 def _check_contextual_chunking(
@@ -276,67 +283,76 @@ def _check_contextual_chunking(
         return
 
     chunking = config.indexing.chunking
-    context_model: str = chunking.context_model  # type: ignore[union-attr]
+    context_model: str = chunking.context_model
 
     context_provider = infer_context_model_provider(context_model)
 
     if context_provider is None:
         # Unrecognised provider. Check if it looks like a bare local Ollama model.
         if is_probably_local_model(context_model):
-            issues.append(ValidationIssue(
-                severity=ValidationSeverity.WARNING,
-                code="CONTEXTUAL_CHUNKING_SLOW_LOCAL_MODEL",
-                message=(
-                    f"context_model='{context_model}' appears to be a local Ollama model. "
-                    "Contextual chunking makes one LLM call per chunk — at local inference "
-                    "speeds this is ~100x slower than Claude Haiku (API). "
-                    "A 10K-chunk corpus may take hours. Consider using an API model."
-                ),
-                component_path="indexing.chunking.context_model",
-                suggestion="Use 'claude-3-haiku-20240307' (cheap) or 'gpt-4o-mini' for context generation.",
-            ))
+            issues.append(
+                ValidationIssue(
+                    severity=ValidationSeverity.WARNING,
+                    code="CONTEXTUAL_CHUNKING_SLOW_LOCAL_MODEL",
+                    message=(
+                        f"context_model='{context_model}' appears to be a local Ollama model. "
+                        "Contextual chunking makes one LLM call per chunk — at local inference "
+                        "speeds this is ~100x slower than Claude Haiku (API). "
+                        "A 10K-chunk corpus may take hours. Consider using an API model."
+                    ),
+                    component_path="indexing.chunking.context_model",
+                    suggestion=(
+                        "Use 'claude-3-haiku-20240307' (cheap) or "
+                        "'gpt-4o-mini' for context generation."
+                    ),
+                )
+            )
         # Unknown cloud-like model (contains '/' or ':') — emit nothing.
         return
 
     if not supports_contextual_provider_scaffolding(context_provider):
         env_var = PROVIDER_ENV_VAR.get(context_provider, f"{context_provider.upper()}_API_KEY")
-        issues.append(ValidationIssue(
-            severity=ValidationSeverity.INFO,
-            code="CONTEXTUAL_CHUNKING_MANUAL_PROVIDER_SETUP",
-            message=(
-                f"context_model='{context_model}' uses the {context_provider} API, "
-                "but ragfactory does not automatically scaffold contextual chunking "
-                f"environment variables for this provider. Configure {env_var} manually "
-                "if you customise the generated pipeline."
-            ),
-            component_path="indexing.chunking.context_model",
-            suggestion=f"Configure {env_var} manually in your deployment environment.",
-        ))
+        issues.append(
+            ValidationIssue(
+                severity=ValidationSeverity.INFO,
+                code="CONTEXTUAL_CHUNKING_MANUAL_PROVIDER_SETUP",
+                message=(
+                    f"context_model='{context_model}' uses the {context_provider} API, "
+                    "but ragfactory does not automatically scaffold contextual chunking "
+                    f"environment variables for this provider. Configure {env_var} manually "
+                    "if you customise the generated pipeline."
+                ),
+                component_path="indexing.chunking.context_model",
+                suggestion=f"Configure {env_var} manually in your deployment environment.",
+            )
+        )
         return
 
     # Known cloud provider with scaffold support: check if it needs an extra API key
     # beyond the main LLM.
     llm_type = config.generation.llm.type
     llm_provider_map = {
-        "openai":     "openai",
-        "anthropic":  "anthropic",
+        "openai": "openai",
+        "anthropic": "anthropic",
         "cohere_llm": "cohere_llm",
-        "ollama":     "ollama",
+        "ollama": "ollama",
     }
 
     if context_provider != llm_provider_map.get(llm_type):
         env_var = PROVIDER_ENV_VAR.get(context_provider, f"{context_provider.upper()}_API_KEY")
-        issues.append(ValidationIssue(
-            severity=ValidationSeverity.INFO,
-            code="CONTEXTUAL_CHUNKING_EXTRA_API_KEY",
-            message=(
-                f"context_model='{context_model}' uses the {context_provider} API, "
-                f"but your pipeline LLM uses {llm_type}. "
-                f"An extra API key is required: {env_var}."
-            ),
-            component_path="indexing.chunking.context_model",
-            suggestion=f"Add {env_var} to your .env file.",
-        ))
+        issues.append(
+            ValidationIssue(
+                severity=ValidationSeverity.INFO,
+                code="CONTEXTUAL_CHUNKING_EXTRA_API_KEY",
+                message=(
+                    f"context_model='{context_model}' uses the {context_provider} API, "
+                    f"but your pipeline LLM uses {llm_type}. "
+                    f"An extra API key is required: {env_var}."
+                ),
+                component_path="indexing.chunking.context_model",
+                suggestion=f"Add {env_var} to your .env file.",
+            )
+        )
 
 
 def _check_unsupported_advanced_generation(
@@ -355,16 +371,20 @@ def _check_unsupported_advanced_generation(
     for name, feature, label in checks:
         if feature is None or not feature.enabled:
             continue
-        issues.append(ValidationIssue(
-            severity=ValidationSeverity.ERROR,
-            code=f"UNSUPPORTED_ADVANCED_{name.upper()}",
-            message=(
-                f"generation.advanced.{name} is accepted by the schema, but {label} "
-                "code generation is not implemented in this release."
-            ),
-            component_path=f"generation.advanced.{name}",
-            suggestion=f"Remove generation.advanced.{name} or set enabled=false before generating.",
-        ))
+        issues.append(
+            ValidationIssue(
+                severity=ValidationSeverity.ERROR,
+                code=f"UNSUPPORTED_ADVANCED_{name.upper()}",
+                message=(
+                    f"generation.advanced.{name} is accepted by the schema, but {label} "
+                    "code generation is not implemented in this release."
+                ),
+                component_path=f"generation.advanced.{name}",
+                suggestion=(
+                    f"Remove generation.advanced.{name} or set enabled=false before generating."
+                ),
+            )
+        )
 
 
 def _check_reranker_top_n(
@@ -384,20 +404,21 @@ def _check_reranker_top_n(
         return
 
     if reranker.top_n >= retrieval_top_k:
-        issues.append(ValidationIssue(
-            severity=ValidationSeverity.WARNING,
-            code="RERANKER_TOP_N_EXCEEDS_TOP_K",
-            message=(
-                f"reranker.top_n={reranker.top_n} >= retrieval.top_k={retrieval_top_k}. "
-                "The reranker will receive fewer documents than it expects to select. "
-                "This is almost always a misconfiguration."
-            ),
-            component_path="post_retrieval.reranker.top_n",
-            suggestion=(
-                f"Set retrieval.top_k > reranker.top_n. "
-                f"Typical: top_k=20–100, top_n=3–10."
-            ),
-        ))
+        issues.append(
+            ValidationIssue(
+                severity=ValidationSeverity.WARNING,
+                code="RERANKER_TOP_N_EXCEEDS_TOP_K",
+                message=(
+                    f"reranker.top_n={reranker.top_n} >= retrieval.top_k={retrieval_top_k}. "
+                    "The reranker will receive fewer documents than it expects to select. "
+                    "This is almost always a misconfiguration."
+                ),
+                component_path="post_retrieval.reranker.top_n",
+                suggestion=(
+                    "Set retrieval.top_k > reranker.top_n. Typical: top_k=20–100, top_n=3–10."
+                ),
+            )
+        )
 
 
 def _check_warnings(
@@ -409,8 +430,8 @@ def _check_warnings(
     for every active condition.
     """
     _severity_map = {
-        Severity.INFO:       ValidationSeverity.INFO,
-        Severity.WARNING:    ValidationSeverity.WARNING,
+        Severity.INFO: ValidationSeverity.INFO,
+        Severity.WARNING: ValidationSeverity.WARNING,
         Severity.COST_ALERT: ValidationSeverity.COST,
     }
 
@@ -421,13 +442,15 @@ def _check_warnings(
         tail = w.condition.rsplit(".", 1)[-1].upper()
         code = f"WARN_{tail}"
 
-        issues.append(ValidationIssue(
-            severity=_severity_map[w.severity],
-            code=code,
-            message=w.message,
-            component_path=w.condition,
-            suggestion=None,
-        ))
+        issues.append(
+            ValidationIssue(
+                severity=_severity_map[w.severity],
+                code=code,
+                message=w.message,
+                component_path=w.condition,
+                suggestion=None,
+            )
+        )
 
 
 def _estimate_costs(
@@ -451,15 +474,18 @@ def _estimate_costs(
         if corpus_tokens is not None:
             estimated_total = rate * corpus_tokens / 1_000_000
 
-        costs.append(CostEstimate(
-            component=key,
-            description=description,
-            cost_per_million_tokens=rate,
-            estimated_total=estimated_total,
-        ))
+        costs.append(
+            CostEstimate(
+                component=key,
+                description=description,
+                cost_per_million_tokens=rate,
+                estimated_total=estimated_total,
+            )
+        )
 
 
 # ─── Public API ───────────────────────────────────────────────────────────────
+
 
 def validate(
     config: RAGPipelineConfig,
@@ -487,12 +513,10 @@ def validate(
                 print(f"[{err.code}] {err.message}")
     """
     if not isinstance(config, RAGPipelineConfig):
-        raise TypeError(
-            f"validate() expects a RAGPipelineConfig, got {type(config).__name__}"
-        )
+        raise TypeError(f"validate() expects a RAGPipelineConfig, got {type(config).__name__}")
 
     issues: list[ValidationIssue] = []
-    costs:  list[CostEstimate]    = []
+    costs: list[CostEstimate] = []
 
     # Run all checkers in order
     _check_incompatible_pairs(config, issues)

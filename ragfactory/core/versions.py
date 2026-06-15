@@ -132,7 +132,6 @@ DEPENDENCY_MATRIX: dict[str, dict[str, dict[str, list[str]]]] = {
             ],
         },
     },
-
     # ──────────────────────────────────────────────────────────────────────────
     # LlamaIndex
     # ──────────────────────────────────────────────────────────────────────────
@@ -243,8 +242,8 @@ DEPENDENCY_MATRIX: dict[str, dict[str, dict[str, list[str]]]] = {
 # These are framework-independent — same package regardless of langchain/llamaindex.
 
 CHUNKING_EXTRA_DEPS: dict[str, list[str]] = {
-    "fixed": [],        # no extra deps — built into both frameworks
-    "recursive": [],    # no extra deps — built into both frameworks
+    "fixed": [],  # no extra deps — built into both frameworks
+    "recursive": [],  # no extra deps — built into both frameworks
     "semantic": [
         "sentence-transformers>=3.0.0,<4.0.0",
     ],
@@ -255,7 +254,7 @@ CHUNKING_EXTRA_DEPS: dict[str, list[str]] = {
         # Late chunking requires Jina embedding (enforced by validator)
         # No extra chunking-specific deps beyond Jina embedding deps
     ],
-    "page_level": [],   # PDF page splitting — handled by parser
+    "page_level": [],  # PDF page splitting — handled by parser
     "proposition": [
         "openai>=1.40.0,<2.0.0",  # default extraction model is gpt-4o-mini
     ],
@@ -292,8 +291,6 @@ EVALUATION_EXTRA_DEPS: dict[str, list[str]] = {
         "deepeval>=1.0.0,<2.0.0",
     ],
 }
-
-
 
 
 # ─── Public API ───────────────────────────────────────────────────────────────

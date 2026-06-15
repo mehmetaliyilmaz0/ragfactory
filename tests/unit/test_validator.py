@@ -22,8 +22,8 @@ from ragfactory.core.config import (
     AnthropicLLMConfig,
     BGEM3EmbeddingConfig,
     ChromaDBConfig,
-    CohereLLMConfig,
     CohereEmbeddingConfig,
+    CohereLLMConfig,
     CohereRerankerConfig,
     ColBERTRerankerConfig,
     ContextualChunkingConfig,
@@ -59,8 +59,8 @@ from ragfactory.core.config import (
     QdrantConfig,
     RAGPipelineConfig,
     RecursiveChunkingConfig,
-    RoutingConfig,
     RouteDefinition,
+    RoutingConfig,
     SemanticChunkingConfig,
     SentenceWindowConfig,
     SmallToBigConfig,
@@ -75,7 +75,6 @@ from ragfactory.core.validator import (
     _is_active,
     validate,
 )
-
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -123,32 +122,38 @@ class TestValidationResultStructure:
         assert result.errors == []
 
     def test_errors_property_filters_correctly(self) -> None:
-        result = validate(_cfg(
-            retrieval=HybridRRFConfig(),
-            indexing=IndexingConfig(
-                embedding=OpenAIEmbeddingConfig(),
-                vector_db=ChromaDBConfig(),  # incompatible with hybrid
-            ),
-        ))
+        result = validate(
+            _cfg(
+                retrieval=HybridRRFConfig(),
+                indexing=IndexingConfig(
+                    embedding=OpenAIEmbeddingConfig(),
+                    vector_db=ChromaDBConfig(),  # incompatible with hybrid
+                ),
+            )
+        )
         assert all(i.severity == ValidationSeverity.ERROR for i in result.errors)
 
     def test_warnings_property_filters_correctly(self) -> None:
-        result = validate(_cfg(
-            indexing=IndexingConfig(
-                embedding=BGEM3EmbeddingConfig(),  # triggers GPU warning
-                vector_db=QdrantConfig(),
-            ),
-        ))
+        result = validate(
+            _cfg(
+                indexing=IndexingConfig(
+                    embedding=BGEM3EmbeddingConfig(),  # triggers GPU warning
+                    vector_db=QdrantConfig(),
+                ),
+            )
+        )
         assert all(i.severity == ValidationSeverity.WARNING for i in result.warnings)
 
     def test_error_config_returns_valid_false(self) -> None:
-        result = validate(_cfg(
-            retrieval=HybridRRFConfig(),
-            indexing=IndexingConfig(
-                embedding=OpenAIEmbeddingConfig(),
-                vector_db=ChromaDBConfig(),
-            ),
-        ))
+        result = validate(
+            _cfg(
+                retrieval=HybridRRFConfig(),
+                indexing=IndexingConfig(
+                    embedding=OpenAIEmbeddingConfig(),
+                    vector_db=ChromaDBConfig(),
+                ),
+            )
+        )
         assert result.valid is False
 
     def test_wrong_input_type_raises_type_error(self) -> None:
@@ -157,12 +162,14 @@ class TestValidationResultStructure:
 
     def test_warnings_do_not_affect_valid(self) -> None:
         # BGE-M3 triggers a GPU warning but the pipeline is otherwise valid
-        result = validate(_cfg(
-            indexing=IndexingConfig(
-                embedding=BGEM3EmbeddingConfig(),
-                vector_db=QdrantConfig(),
-            ),
-        ))
+        result = validate(
+            _cfg(
+                indexing=IndexingConfig(
+                    embedding=BGEM3EmbeddingConfig(),
+                    vector_db=QdrantConfig(),
+                ),
+            )
+        )
         assert result.valid is True
         assert len(result.warnings) > 0
 
@@ -196,42 +203,49 @@ class TestUnsupportedAdvancedGeneration:
         assert _has_error(result, "UNSUPPORTED_ADVANCED_FLARE")
 
     def test_crag_enabled_is_unsupported_error(self) -> None:
-        result = validate(_cfg(
-            generation=GenerationConfig(
-                llm=OpenAILLMConfig(),
-                advanced=AdvancedGenerationConfig(crag=CRAGConfig(enabled=True)),
-            ),
-        ))
+        result = validate(
+            _cfg(
+                generation=GenerationConfig(
+                    llm=OpenAILLMConfig(),
+                    advanced=AdvancedGenerationConfig(crag=CRAGConfig(enabled=True)),
+                ),
+            )
+        )
         assert result.valid is False
         assert _has_error(result, "UNSUPPORTED_ADVANCED_CRAG")
 
     def test_agentic_enabled_is_supported_and_valid(self) -> None:
-        result = validate(_cfg(
-            generation=GenerationConfig(
-                llm=OpenAILLMConfig(),
-                advanced=AdvancedGenerationConfig(agentic=AgenticConfig(enabled=True)),
-            ),
-        ))
+        result = validate(
+            _cfg(
+                generation=GenerationConfig(
+                    llm=OpenAILLMConfig(),
+                    advanced=AdvancedGenerationConfig(agentic=AgenticConfig(enabled=True)),
+                ),
+            )
+        )
         assert result.valid is True
         assert not any("AGENTIC" in i.code for i in result.errors)
 
-
     def test_flare_disabled_no_issues(self) -> None:
-        result = validate(_cfg(
-            generation=GenerationConfig(
-                llm=AnthropicLLMConfig(),
-                advanced=AdvancedGenerationConfig(flare=FLAREConfig(enabled=False)),
-            ),
-        ))
+        result = validate(
+            _cfg(
+                generation=GenerationConfig(
+                    llm=AnthropicLLMConfig(),
+                    advanced=AdvancedGenerationConfig(flare=FLAREConfig(enabled=False)),
+                ),
+            )
+        )
         assert not any("FLARE" in i.code for i in result.issues)
 
     def test_flare_none_no_issues(self) -> None:
-        result = validate(_cfg(
-            generation=GenerationConfig(
-                llm=AnthropicLLMConfig(),
-                advanced=AdvancedGenerationConfig(flare=None),
-            ),
-        ))
+        result = validate(
+            _cfg(
+                generation=GenerationConfig(
+                    llm=AnthropicLLMConfig(),
+                    advanced=AdvancedGenerationConfig(flare=None),
+                ),
+            )
+        )
         assert not any("FLARE" in i.code for i in result.issues)
 
 
@@ -240,69 +254,76 @@ class TestUnsupportedAdvancedGeneration:
 
 class TestLateChunkingChecks:
     def test_late_with_openai_embedding_is_error(self) -> None:
-        result = validate(_cfg(
-            indexing=IndexingConfig(
-                chunking=LateChunkingConfig(),
-                embedding=OpenAIEmbeddingConfig(),
-                vector_db=QdrantConfig(),
-            ),
-        ))
+        result = validate(
+            _cfg(
+                indexing=IndexingConfig(
+                    chunking=LateChunkingConfig(),
+                    embedding=OpenAIEmbeddingConfig(),
+                    vector_db=QdrantConfig(),
+                ),
+            )
+        )
         assert result.valid is False
 
     def test_late_with_jina_v3_flag_true_is_valid(self) -> None:
-        result = validate(_cfg(
-            indexing=IndexingConfig(
-                chunking=LateChunkingConfig(),
-                embedding=JinaEmbeddingConfig(
-                    model="jina-embeddings-v3",
-                    late_chunking=True,
+        result = validate(
+            _cfg(
+                indexing=IndexingConfig(
+                    chunking=LateChunkingConfig(),
+                    embedding=JinaEmbeddingConfig(
+                        model="jina-embeddings-v3",
+                        late_chunking=True,
+                    ),
+                    vector_db=QdrantConfig(),
                 ),
-                vector_db=QdrantConfig(),
-            ),
-        ))
+            )
+        )
         # No late-chunking-specific errors
-        late_errors = [
-            i for i in result.errors
-            if "LATE" in i.code or "JINA" in i.code
-        ]
+        late_errors = [i for i in result.errors if "LATE" in i.code or "JINA" in i.code]
         assert late_errors == [], f"Unexpected errors: {late_errors}"
 
     def test_late_with_jina_v2_is_error(self) -> None:
-        result = validate(_cfg(
-            indexing=IndexingConfig(
-                chunking=LateChunkingConfig(),
-                embedding=JinaEmbeddingConfig(
-                    model="jina-embeddings-v2-base-en",
-                    late_chunking=True,
+        result = validate(
+            _cfg(
+                indexing=IndexingConfig(
+                    chunking=LateChunkingConfig(),
+                    embedding=JinaEmbeddingConfig(
+                        model="jina-embeddings-v2-base-en",
+                        late_chunking=True,
+                    ),
+                    vector_db=QdrantConfig(),
                 ),
-                vector_db=QdrantConfig(),
-            ),
-        ))
+            )
+        )
         assert result.valid is False
         assert _has_error(result, "LATE_CHUNKING_JINA_V2")
 
     def test_late_with_jina_v3_flag_false_is_error(self) -> None:
-        result = validate(_cfg(
-            indexing=IndexingConfig(
-                chunking=LateChunkingConfig(),
-                embedding=JinaEmbeddingConfig(
-                    model="jina-embeddings-v3",
-                    late_chunking=False,
+        result = validate(
+            _cfg(
+                indexing=IndexingConfig(
+                    chunking=LateChunkingConfig(),
+                    embedding=JinaEmbeddingConfig(
+                        model="jina-embeddings-v3",
+                        late_chunking=False,
+                    ),
+                    vector_db=QdrantConfig(),
                 ),
-                vector_db=QdrantConfig(),
-            ),
-        ))
+            )
+        )
         assert result.valid is False
         assert _has_error(result, "LATE_CHUNKING_FLAG_NOT_SET")
 
     def test_late_with_voyage_embedding_is_error(self) -> None:
-        result = validate(_cfg(
-            indexing=IndexingConfig(
-                chunking=LateChunkingConfig(),
-                embedding=VoyageEmbeddingConfig(),
-                vector_db=QdrantConfig(),
-            ),
-        ))
+        result = validate(
+            _cfg(
+                indexing=IndexingConfig(
+                    chunking=LateChunkingConfig(),
+                    embedding=VoyageEmbeddingConfig(),
+                    vector_db=QdrantConfig(),
+                ),
+            )
+        )
         assert result.valid is False
 
 
@@ -311,56 +332,66 @@ class TestLateChunkingChecks:
 
 class TestHybridSearchVectorDB:
     def test_hybrid_rrf_chromadb_is_error(self) -> None:
-        result = validate(_cfg(
-            retrieval=HybridRRFConfig(),
-            indexing=IndexingConfig(
-                embedding=OpenAIEmbeddingConfig(),
-                vector_db=ChromaDBConfig(),
-            ),
-        ))
+        result = validate(
+            _cfg(
+                retrieval=HybridRRFConfig(),
+                indexing=IndexingConfig(
+                    embedding=OpenAIEmbeddingConfig(),
+                    vector_db=ChromaDBConfig(),
+                ),
+            )
+        )
         assert result.valid is False
         assert any("CHROMADB" in i.code for i in result.errors)
 
     def test_hybrid_rrf_qdrant_is_valid(self) -> None:
-        result = validate(_cfg(
-            retrieval=HybridRRFConfig(),
-            indexing=IndexingConfig(
-                embedding=OpenAIEmbeddingConfig(),
-                vector_db=QdrantConfig(),
-            ),
-        ))
+        result = validate(
+            _cfg(
+                retrieval=HybridRRFConfig(),
+                indexing=IndexingConfig(
+                    embedding=OpenAIEmbeddingConfig(),
+                    vector_db=QdrantConfig(),
+                ),
+            )
+        )
         assert not any("CHROMADB" in i.code or "PINECONE" in i.code for i in result.errors)
 
     def test_hybrid_weighted_pinecone_is_error(self) -> None:
-        result = validate(_cfg(
-            retrieval=HybridWeightedConfig(),
-            indexing=IndexingConfig(
-                embedding=OpenAIEmbeddingConfig(),
-                vector_db=PineconeConfig(),
-            ),
-        ))
+        result = validate(
+            _cfg(
+                retrieval=HybridWeightedConfig(),
+                indexing=IndexingConfig(
+                    embedding=OpenAIEmbeddingConfig(),
+                    vector_db=PineconeConfig(),
+                ),
+            )
+        )
         assert result.valid is False
         assert any("PINECONE" in i.code for i in result.errors)
 
     def test_hybrid_rrf_milvus_is_valid(self) -> None:
-        result = validate(_cfg(
-            retrieval=HybridRRFConfig(),
-            indexing=IndexingConfig(
-                embedding=OpenAIEmbeddingConfig(),
-                vector_db=MilvusConfig(),
-            ),
-        ))
+        result = validate(
+            _cfg(
+                retrieval=HybridRRFConfig(),
+                indexing=IndexingConfig(
+                    embedding=OpenAIEmbeddingConfig(),
+                    vector_db=MilvusConfig(),
+                ),
+            )
+        )
         hybrid_errors = [i for i in result.errors if "CHROMADB" in i.code or "PINECONE" in i.code]
         assert hybrid_errors == []
 
     def test_dense_chromadb_is_valid(self) -> None:
-        result = validate(_cfg(
-            retrieval=DenseRetrievalConfig(),
-            indexing=IndexingConfig(
-                embedding=OpenAIEmbeddingConfig(),
-                vector_db=ChromaDBConfig(),
-            ),
-        ))
+        result = validate(
+            _cfg(
+                retrieval=DenseRetrievalConfig(),
+                indexing=IndexingConfig(
+                    embedding=OpenAIEmbeddingConfig(),
+                    vector_db=ChromaDBConfig(),
+                ),
+            )
+        )
         # Dense + ChromaDB is fine — no hybrid errors
         hybrid_errors = [i for i in result.errors if "CHROMADB" in i.code]
         assert hybrid_errors == []
@@ -371,20 +402,26 @@ class TestHybridSearchVectorDB:
 
 class TestSentenceWindowFramework:
     def test_sentence_window_langchain_is_valid_with_info(self) -> None:
-        result = validate(_cfg(
-            framework=Framework.LANGCHAIN,
-            retrieval=SentenceWindowConfig(),
-        ))
+        result = validate(
+            _cfg(
+                framework=Framework.LANGCHAIN,
+                retrieval=SentenceWindowConfig(),
+            )
+        )
         assert result.valid is True
         assert not any("SENTENCE_WINDOW" in i.code for i in result.errors)
         assert any("SENTENCE_WINDOW" in i.code for i in result.infos)
 
     def test_sentence_window_llamaindex_is_valid(self) -> None:
-        result = validate(_cfg(
-            framework=Framework.LLAMAINDEX,
-            retrieval=SentenceWindowConfig(),
-        ))
-        sentence_errors = [i for i in result.errors if "SENTENCE" in i.code or "LANGCHAIN" in i.code]
+        result = validate(
+            _cfg(
+                framework=Framework.LLAMAINDEX,
+                retrieval=SentenceWindowConfig(),
+            )
+        )
+        sentence_errors = [
+            i for i in result.errors if "SENTENCE" in i.code or "LANGCHAIN" in i.code
+        ]
         assert sentence_errors == []
 
 
@@ -393,31 +430,35 @@ class TestSentenceWindowFramework:
 
 class TestAdvancedGenerationDisabledStates:
     def test_all_three_enabled_emit_unsupported_errors_for_crag_and_flare(self) -> None:
-        result = validate(_cfg(
-            generation=GenerationConfig(
-                llm=OpenAILLMConfig(),
-                advanced=AdvancedGenerationConfig(
-                    crag=CRAGConfig(enabled=True),
-                    flare=FLAREConfig(enabled=True),
-                    agentic=AgenticConfig(enabled=True),
+        result = validate(
+            _cfg(
+                generation=GenerationConfig(
+                    llm=OpenAILLMConfig(),
+                    advanced=AdvancedGenerationConfig(
+                        crag=CRAGConfig(enabled=True),
+                        flare=FLAREConfig(enabled=True),
+                        agentic=AgenticConfig(enabled=True),
+                    ),
                 ),
-            ),
-        ))
+            )
+        )
         assert _has_error(result, "UNSUPPORTED_ADVANCED_CRAG")
         assert _has_error(result, "UNSUPPORTED_ADVANCED_FLARE")
         assert not any("AGENTIC" in i.code for i in result.errors)
 
     def test_all_disabled_no_warning(self) -> None:
-        result = validate(_cfg(
-            generation=GenerationConfig(
-                llm=OpenAILLMConfig(),
-                advanced=AdvancedGenerationConfig(
-                    crag=CRAGConfig(enabled=False),
-                    flare=FLAREConfig(enabled=False),
-                    agentic=AgenticConfig(enabled=False),
+        result = validate(
+            _cfg(
+                generation=GenerationConfig(
+                    llm=OpenAILLMConfig(),
+                    advanced=AdvancedGenerationConfig(
+                        crag=CRAGConfig(enabled=False),
+                        flare=FLAREConfig(enabled=False),
+                        agentic=AgenticConfig(enabled=False),
+                    ),
                 ),
-            ),
-        ))
+            )
+        )
         assert result.valid is True
         assert not any("UNSUPPORTED_ADVANCED" in i.code for i in result.errors)
 
@@ -431,46 +472,56 @@ class TestAdvancedGenerationDisabledStates:
 
 class TestRerankerTopNCheck:
     def test_top_n_equals_top_k_warns(self) -> None:
-        result = validate(_cfg(
-            retrieval=DenseRetrievalConfig(top_k=5),
-            post_retrieval=PostRetrievalConfig(
-                reranker=CohereRerankerConfig(top_n=5),
-            ),
-        ))
+        result = validate(
+            _cfg(
+                retrieval=DenseRetrievalConfig(top_k=5),
+                post_retrieval=PostRetrievalConfig(
+                    reranker=CohereRerankerConfig(top_n=5),
+                ),
+            )
+        )
         assert _has_warning(result, "RERANKER_TOP_N_EXCEEDS_TOP_K")
 
     def test_top_n_greater_than_top_k_warns(self) -> None:
-        result = validate(_cfg(
-            retrieval=DenseRetrievalConfig(top_k=5),
-            post_retrieval=PostRetrievalConfig(
-                reranker=CohereRerankerConfig(top_n=10),
-            ),
-        ))
+        result = validate(
+            _cfg(
+                retrieval=DenseRetrievalConfig(top_k=5),
+                post_retrieval=PostRetrievalConfig(
+                    reranker=CohereRerankerConfig(top_n=10),
+                ),
+            )
+        )
         assert _has_warning(result, "RERANKER_TOP_N_EXCEEDS_TOP_K")
 
     def test_top_n_less_than_top_k_no_warning(self) -> None:
-        result = validate(_cfg(
-            retrieval=DenseRetrievalConfig(top_k=20),
-            post_retrieval=PostRetrievalConfig(
-                reranker=CohereRerankerConfig(top_n=5),
-            ),
-        ))
+        result = validate(
+            _cfg(
+                retrieval=DenseRetrievalConfig(top_k=20),
+                post_retrieval=PostRetrievalConfig(
+                    reranker=CohereRerankerConfig(top_n=5),
+                ),
+            )
+        )
         assert not _has_warning(result, "RERANKER_TOP_N_EXCEEDS_TOP_K")
 
     def test_no_reranker_no_warning(self) -> None:
-        result = validate(_cfg(
-            retrieval=DenseRetrievalConfig(top_k=5),
-            post_retrieval=PostRetrievalConfig(reranker=None),
-        ))
+        result = validate(
+            _cfg(
+                retrieval=DenseRetrievalConfig(top_k=5),
+                post_retrieval=PostRetrievalConfig(reranker=None),
+            )
+        )
         assert not _has_warning(result, "RERANKER_TOP_N_EXCEEDS_TOP_K")
 
     def test_colbert_reranker_also_checked(self) -> None:
-        result = validate(_cfg(
-            retrieval=DenseRetrievalConfig(top_k=3),
-            post_retrieval=PostRetrievalConfig(
-                reranker=ColBERTRerankerConfig(top_n=5),
-            ),
-        ))
+        result = validate(
+            _cfg(
+                retrieval=DenseRetrievalConfig(top_k=3),
+                post_retrieval=PostRetrievalConfig(
+                    reranker=ColBERTRerankerConfig(top_n=5),
+                ),
+            )
+        )
         assert _has_warning(result, "RERANKER_TOP_N_EXCEEDS_TOP_K")
 
 
@@ -479,58 +530,68 @@ class TestRerankerTopNCheck:
 
 class TestContextualChunkingChecks:
     def test_contextual_with_ollama_context_model_warns(self) -> None:
-        result = validate(_cfg(
-            indexing=IndexingConfig(
-                chunking=ContextualChunkingConfig(context_model="llama3.2"),
-                embedding=OpenAIEmbeddingConfig(),
-                vector_db=QdrantConfig(),
-            ),
-        ))
+        result = validate(
+            _cfg(
+                indexing=IndexingConfig(
+                    chunking=ContextualChunkingConfig(context_model="llama3.2"),
+                    embedding=OpenAIEmbeddingConfig(),
+                    vector_db=QdrantConfig(),
+                ),
+            )
+        )
         assert _has_warning(result, "CONTEXTUAL_CHUNKING_SLOW_LOCAL_MODEL")
 
     def test_contextual_with_claude_haiku_no_throughput_warning(self) -> None:
-        result = validate(_cfg(
-            indexing=IndexingConfig(
-                chunking=ContextualChunkingConfig(context_model="claude-3-haiku-20240307"),
-                embedding=OpenAIEmbeddingConfig(),
-                vector_db=QdrantConfig(),
-            ),
-        ))
+        result = validate(
+            _cfg(
+                indexing=IndexingConfig(
+                    chunking=ContextualChunkingConfig(context_model="claude-3-haiku-20240307"),
+                    embedding=OpenAIEmbeddingConfig(),
+                    vector_db=QdrantConfig(),
+                ),
+            )
+        )
         assert not _has_warning(result, "CONTEXTUAL_CHUNKING_SLOW_LOCAL_MODEL")
 
     def test_contextual_extra_api_key_info_when_providers_differ(self) -> None:
         # Main LLM is OpenAI, context model is Claude → extra Anthropic key needed
-        result = validate(_cfg(
-            indexing=IndexingConfig(
-                chunking=ContextualChunkingConfig(context_model="claude-3-haiku-20240307"),
-                embedding=OpenAIEmbeddingConfig(),
-                vector_db=QdrantConfig(),
-            ),
-            generation=GenerationConfig(llm=OpenAILLMConfig()),
-        ))
+        result = validate(
+            _cfg(
+                indexing=IndexingConfig(
+                    chunking=ContextualChunkingConfig(context_model="claude-3-haiku-20240307"),
+                    embedding=OpenAIEmbeddingConfig(),
+                    vector_db=QdrantConfig(),
+                ),
+                generation=GenerationConfig(llm=OpenAILLMConfig()),
+            )
+        )
         assert _has_info(result, "CONTEXTUAL_CHUNKING_EXTRA_API_KEY")
 
     def test_contextual_same_provider_no_extra_key_info(self) -> None:
         # Main LLM is Anthropic, context model is Claude → same provider
-        result = validate(_cfg(
-            indexing=IndexingConfig(
-                chunking=ContextualChunkingConfig(context_model="claude-3-haiku-20240307"),
-                embedding=OpenAIEmbeddingConfig(),
-                vector_db=QdrantConfig(),
-            ),
-            generation=GenerationConfig(llm=AnthropicLLMConfig()),
-        ))
+        result = validate(
+            _cfg(
+                indexing=IndexingConfig(
+                    chunking=ContextualChunkingConfig(context_model="claude-3-haiku-20240307"),
+                    embedding=OpenAIEmbeddingConfig(),
+                    vector_db=QdrantConfig(),
+                ),
+                generation=GenerationConfig(llm=AnthropicLLMConfig()),
+            )
+        )
         assert not _has_info(result, "CONTEXTUAL_CHUNKING_EXTRA_API_KEY")
 
     def test_contextual_gpt_context_model_with_anthropic_llm(self) -> None:
-        result = validate(_cfg(
-            indexing=IndexingConfig(
-                chunking=ContextualChunkingConfig(context_model="gpt-4o-mini"),
-                embedding=OpenAIEmbeddingConfig(),
-                vector_db=QdrantConfig(),
-            ),
-            generation=GenerationConfig(llm=AnthropicLLMConfig()),
-        ))
+        result = validate(
+            _cfg(
+                indexing=IndexingConfig(
+                    chunking=ContextualChunkingConfig(context_model="gpt-4o-mini"),
+                    embedding=OpenAIEmbeddingConfig(),
+                    vector_db=QdrantConfig(),
+                ),
+                generation=GenerationConfig(llm=AnthropicLLMConfig()),
+            )
+        )
         assert _has_info(result, "CONTEXTUAL_CHUNKING_EXTRA_API_KEY")
 
 
@@ -539,44 +600,54 @@ class TestContextualChunkingChecks:
 
 class TestSoftWarningsPassthrough:
     def test_chromadb_warning_emitted(self) -> None:
-        result = validate(_cfg(
-            indexing=IndexingConfig(
-                embedding=OpenAIEmbeddingConfig(),
-                vector_db=ChromaDBConfig(),
-            ),
-        ))
+        result = validate(
+            _cfg(
+                indexing=IndexingConfig(
+                    embedding=OpenAIEmbeddingConfig(),
+                    vector_db=ChromaDBConfig(),
+                ),
+            )
+        )
         assert any("CHROMADB" in i.code for i in result.issues)
 
     def test_bge_m3_gpu_warning_emitted(self) -> None:
-        result = validate(_cfg(
-            indexing=IndexingConfig(
-                embedding=BGEM3EmbeddingConfig(),
-                vector_db=QdrantConfig(),
-            ),
-        ))
+        result = validate(
+            _cfg(
+                indexing=IndexingConfig(
+                    embedding=BGEM3EmbeddingConfig(),
+                    vector_db=QdrantConfig(),
+                ),
+            )
+        )
         assert any("BGE_M3" in i.code or "bge_m3".upper() in i.code.upper() for i in result.issues)
 
     def test_hyde_info_emitted(self) -> None:
-        result = validate(_cfg(
-            pre_retrieval=PreRetrievalConfig(hyde=HyDEConfig(enabled=True)),
-        ))
+        result = validate(
+            _cfg(
+                pre_retrieval=PreRetrievalConfig(hyde=HyDEConfig(enabled=True)),
+            )
+        )
         assert any("HYDE" in i.code for i in result.issues)
 
     def test_hyde_disabled_no_issue(self) -> None:
-        result = validate(_cfg(
-            pre_retrieval=PreRetrievalConfig(hyde=HyDEConfig(enabled=False)),
-        ))
+        result = validate(
+            _cfg(
+                pre_retrieval=PreRetrievalConfig(hyde=HyDEConfig(enabled=False)),
+            )
+        )
         assert not any("HYDE" in i.code for i in result.issues)
 
     def test_crag_web_search_is_blocked_as_unsupported(self) -> None:
-        result = validate(_cfg(
-            generation=GenerationConfig(
-                llm=OpenAILLMConfig(),
-                advanced=AdvancedGenerationConfig(
-                    crag=CRAGConfig(enabled=True, web_search_fallback=True),
+        result = validate(
+            _cfg(
+                generation=GenerationConfig(
+                    llm=OpenAILLMConfig(),
+                    advanced=AdvancedGenerationConfig(
+                        crag=CRAGConfig(enabled=True, web_search_fallback=True),
+                    ),
                 ),
-            ),
-        ))
+            )
+        )
         assert result.valid is False
         assert _has_error(result, "UNSUPPORTED_ADVANCED_CRAG")
 
@@ -590,13 +661,15 @@ class TestCostEstimation:
         assert result.costs == []
 
     def test_contextual_chunking_cost_no_corpus(self) -> None:
-        result = validate(_cfg(
-            indexing=IndexingConfig(
-                chunking=ContextualChunkingConfig(),
-                embedding=OpenAIEmbeddingConfig(),
-                vector_db=QdrantConfig(),
-            ),
-        ))
+        result = validate(
+            _cfg(
+                indexing=IndexingConfig(
+                    chunking=ContextualChunkingConfig(),
+                    embedding=OpenAIEmbeddingConfig(),
+                    vector_db=QdrantConfig(),
+                ),
+            )
+        )
         cost_items = [c for c in result.costs if c.component == "contextual_chunking"]
         assert len(cost_items) == 1
         c = cost_items[0]
@@ -681,13 +754,15 @@ class TestCostEstimation:
 
 class TestIssueStructure:
     def test_error_has_required_fields(self) -> None:
-        result = validate(_cfg(
-            retrieval=HybridRRFConfig(),
-            indexing=IndexingConfig(
-                embedding=OpenAIEmbeddingConfig(),
-                vector_db=ChromaDBConfig(),
-            ),
-        ))
+        result = validate(
+            _cfg(
+                retrieval=HybridRRFConfig(),
+                indexing=IndexingConfig(
+                    embedding=OpenAIEmbeddingConfig(),
+                    vector_db=ChromaDBConfig(),
+                ),
+            )
+        )
         for issue in result.errors:
             assert issue.code
             assert issue.message
@@ -695,12 +770,14 @@ class TestIssueStructure:
             assert issue.severity == ValidationSeverity.ERROR
 
     def test_warning_issue_type(self) -> None:
-        result = validate(_cfg(
-            indexing=IndexingConfig(
-                embedding=BGEM3EmbeddingConfig(),
-                vector_db=QdrantConfig(),
-            ),
-        ))
+        result = validate(
+            _cfg(
+                indexing=IndexingConfig(
+                    embedding=BGEM3EmbeddingConfig(),
+                    vector_db=QdrantConfig(),
+                ),
+            )
+        )
         for w in result.warnings:
             assert isinstance(w, ValidationIssue)
             assert w.severity == ValidationSeverity.WARNING
@@ -734,11 +811,13 @@ class TestIsActive:
     # ── indexing.chunking ─────────────────────────────────────────────────────
 
     def _chunking_cfg(self, chunking: object) -> RAGPipelineConfig:
-        return _cfg(indexing=IndexingConfig(
-            chunking=chunking,  # type: ignore[arg-type]
-            embedding=OpenAIEmbeddingConfig(),
-            vector_db=QdrantConfig(),
-        ))
+        return _cfg(
+            indexing=IndexingConfig(
+                chunking=chunking,  # type: ignore[arg-type]
+                embedding=OpenAIEmbeddingConfig(),
+                vector_db=QdrantConfig(),
+            )
+        )
 
     def test_chunking_fixed(self) -> None:
         c = self._chunking_cfg(FixedChunkingConfig())
@@ -773,10 +852,12 @@ class TestIsActive:
     # ── indexing.embedding ────────────────────────────────────────────────────
 
     def _emb_cfg(self, embedding: object) -> RAGPipelineConfig:
-        return _cfg(indexing=IndexingConfig(
-            embedding=embedding,  # type: ignore[arg-type]
-            vector_db=QdrantConfig(),
-        ))
+        return _cfg(
+            indexing=IndexingConfig(
+                embedding=embedding,  # type: ignore[arg-type]
+                vector_db=QdrantConfig(),
+            )
+        )
 
     def test_embedding_openai(self) -> None:
         c = self._emb_cfg(OpenAIEmbeddingConfig())
@@ -784,16 +865,24 @@ class TestIsActive:
         assert _is_active(c, "indexing.embedding.jina") is False
 
     def test_embedding_cohere(self) -> None:
-        assert _is_active(self._emb_cfg(CohereEmbeddingConfig()), "indexing.embedding.cohere") is True
+        assert (
+            _is_active(self._emb_cfg(CohereEmbeddingConfig()), "indexing.embedding.cohere") is True
+        )
 
     def test_embedding_voyage(self) -> None:
-        assert _is_active(self._emb_cfg(VoyageEmbeddingConfig()), "indexing.embedding.voyage") is True
+        assert (
+            _is_active(self._emb_cfg(VoyageEmbeddingConfig()), "indexing.embedding.voyage") is True
+        )
 
     def test_embedding_gemini(self) -> None:
-        assert _is_active(self._emb_cfg(GeminiEmbeddingConfig()), "indexing.embedding.gemini") is True
+        assert (
+            _is_active(self._emb_cfg(GeminiEmbeddingConfig()), "indexing.embedding.gemini") is True
+        )
 
     def test_embedding_bge_m3(self) -> None:
-        assert _is_active(self._emb_cfg(BGEM3EmbeddingConfig()), "indexing.embedding.bge_m3") is True
+        assert (
+            _is_active(self._emb_cfg(BGEM3EmbeddingConfig()), "indexing.embedding.bge_m3") is True
+        )
 
     def test_embedding_nomic(self) -> None:
         assert _is_active(self._emb_cfg(NomicEmbeddingConfig()), "indexing.embedding.nomic") is True
@@ -804,10 +893,12 @@ class TestIsActive:
     # ── indexing.vector_db ────────────────────────────────────────────────────
 
     def _vdb_cfg(self, vector_db: object) -> RAGPipelineConfig:
-        return _cfg(indexing=IndexingConfig(
-            embedding=OpenAIEmbeddingConfig(),
-            vector_db=vector_db,  # type: ignore[arg-type]
-        ))
+        return _cfg(
+            indexing=IndexingConfig(
+                embedding=OpenAIEmbeddingConfig(),
+                vector_db=vector_db,  # type: ignore[arg-type]
+            )
+        )
 
     def test_vectordb_chromadb(self) -> None:
         c = self._vdb_cfg(ChromaDBConfig())
@@ -840,13 +931,17 @@ class TestIsActive:
         assert _is_active(_cfg(retrieval=HybridRRFConfig()), "retrieval.hybrid_rrf") is True
 
     def test_retrieval_hybrid_weighted(self) -> None:
-        assert _is_active(_cfg(retrieval=HybridWeightedConfig()), "retrieval.hybrid_weighted") is True
+        assert (
+            _is_active(_cfg(retrieval=HybridWeightedConfig()), "retrieval.hybrid_weighted") is True
+        )
 
     def test_retrieval_small_to_big(self) -> None:
         assert _is_active(_cfg(retrieval=SmallToBigConfig()), "retrieval.small_to_big") is True
 
     def test_retrieval_sentence_window(self) -> None:
-        assert _is_active(_cfg(retrieval=SentenceWindowConfig()), "retrieval.sentence_window") is True
+        assert (
+            _is_active(_cfg(retrieval=SentenceWindowConfig()), "retrieval.sentence_window") is True
+        )
 
     # ── pre_retrieval ─────────────────────────────────────────────────────────
 
@@ -864,7 +959,10 @@ class TestIsActive:
 
     def test_pre_retrieval_query_rewriting_enabled(self) -> None:
         from ragfactory.core.config import QueryRewritingConfig
-        c = _cfg(pre_retrieval=PreRetrievalConfig(query_rewriting=QueryRewritingConfig(enabled=True)))
+
+        c = _cfg(
+            pre_retrieval=PreRetrievalConfig(query_rewriting=QueryRewritingConfig(enabled=True))
+        )
         assert _is_active(c, "pre_retrieval.query_rewriting") is True
 
     def test_pre_retrieval_query_rewriting_none(self) -> None:
@@ -872,15 +970,17 @@ class TestIsActive:
         assert _is_active(c, "pre_retrieval.query_rewriting") is False
 
     def test_pre_retrieval_routing_enabled(self) -> None:
-        c = _cfg(pre_retrieval=PreRetrievalConfig(
-            routing=RoutingConfig(
-                enabled=True,
-                routes=[
-                    RouteDefinition(name="a", description="route a"),
-                    RouteDefinition(name="b", description="route b"),
-                ],
+        c = _cfg(
+            pre_retrieval=PreRetrievalConfig(
+                routing=RoutingConfig(
+                    enabled=True,
+                    routes=[
+                        RouteDefinition(name="a", description="route a"),
+                        RouteDefinition(name="b", description="route b"),
+                    ],
+                )
             )
-        ))
+        )
         assert _is_active(c, "pre_retrieval.routing") is True
 
     def test_pre_retrieval_routing_none(self) -> None:
@@ -932,17 +1032,21 @@ class TestIsActive:
     # ── generation.advanced ───────────────────────────────────────────────────
 
     def test_advanced_flare_enabled(self) -> None:
-        c = _cfg(generation=GenerationConfig(
-            llm=OpenAILLMConfig(),
-            advanced=AdvancedGenerationConfig(flare=FLAREConfig(enabled=True)),
-        ))
+        c = _cfg(
+            generation=GenerationConfig(
+                llm=OpenAILLMConfig(),
+                advanced=AdvancedGenerationConfig(flare=FLAREConfig(enabled=True)),
+            )
+        )
         assert _is_active(c, "generation.advanced.flare") is True
 
     def test_advanced_flare_disabled(self) -> None:
-        c = _cfg(generation=GenerationConfig(
-            llm=OpenAILLMConfig(),
-            advanced=AdvancedGenerationConfig(flare=FLAREConfig(enabled=False)),
-        ))
+        c = _cfg(
+            generation=GenerationConfig(
+                llm=OpenAILLMConfig(),
+                advanced=AdvancedGenerationConfig(flare=FLAREConfig(enabled=False)),
+            )
+        )
         assert _is_active(c, "generation.advanced.flare") is False
 
     def test_advanced_flare_none_advanced(self) -> None:
@@ -950,35 +1054,43 @@ class TestIsActive:
         assert _is_active(c, "generation.advanced.flare") is False
 
     def test_advanced_crag_enabled(self) -> None:
-        c = _cfg(generation=GenerationConfig(
-            llm=OpenAILLMConfig(),
-            advanced=AdvancedGenerationConfig(crag=CRAGConfig(enabled=True)),
-        ))
+        c = _cfg(
+            generation=GenerationConfig(
+                llm=OpenAILLMConfig(),
+                advanced=AdvancedGenerationConfig(crag=CRAGConfig(enabled=True)),
+            )
+        )
         assert _is_active(c, "generation.advanced.crag") is True
 
     def test_advanced_agentic_enabled(self) -> None:
-        c = _cfg(generation=GenerationConfig(
-            llm=OpenAILLMConfig(),
-            advanced=AdvancedGenerationConfig(agentic=AgenticConfig(enabled=True)),
-        ))
+        c = _cfg(
+            generation=GenerationConfig(
+                llm=OpenAILLMConfig(),
+                advanced=AdvancedGenerationConfig(agentic=AgenticConfig(enabled=True)),
+            )
+        )
         assert _is_active(c, "generation.advanced.agentic") is True
 
     def test_advanced_crag_web_search_fallback_true(self) -> None:
-        c = _cfg(generation=GenerationConfig(
-            llm=OpenAILLMConfig(),
-            advanced=AdvancedGenerationConfig(
-                crag=CRAGConfig(enabled=True, web_search_fallback=True),
-            ),
-        ))
+        c = _cfg(
+            generation=GenerationConfig(
+                llm=OpenAILLMConfig(),
+                advanced=AdvancedGenerationConfig(
+                    crag=CRAGConfig(enabled=True, web_search_fallback=True),
+                ),
+            )
+        )
         assert _is_active(c, "generation.advanced.crag.web_search_fallback") is True
 
     def test_advanced_crag_web_search_fallback_false(self) -> None:
-        c = _cfg(generation=GenerationConfig(
-            llm=OpenAILLMConfig(),
-            advanced=AdvancedGenerationConfig(
-                crag=CRAGConfig(enabled=True, web_search_fallback=False),
-            ),
-        ))
+        c = _cfg(
+            generation=GenerationConfig(
+                llm=OpenAILLMConfig(),
+                advanced=AdvancedGenerationConfig(
+                    crag=CRAGConfig(enabled=True, web_search_fallback=False),
+                ),
+            )
+        )
         assert _is_active(c, "generation.advanced.crag.web_search_fallback") is False
 
     # ── evaluation ────────────────────────────────────────────────────────────
@@ -1063,8 +1175,7 @@ class TestContextualChunkingCloudModels:
         assert not _has_info(result, "CONTEXTUAL_CHUNKING_EXTRA_API_KEY")
         assert _has_info(result, "CONTEXTUAL_CHUNKING_MANUAL_PROVIDER_SETUP")
         info = next(
-            i for i in result.issues
-            if i.code == "CONTEXTUAL_CHUNKING_MANUAL_PROVIDER_SETUP"
+            i for i in result.issues if i.code == "CONTEXTUAL_CHUNKING_MANUAL_PROVIDER_SETUP"
         )
         assert "MISTRAL_API_KEY" in info.message
 
@@ -1074,8 +1185,7 @@ class TestContextualChunkingCloudModels:
         assert not _has_info(result, "CONTEXTUAL_CHUNKING_EXTRA_API_KEY")
         assert _has_info(result, "CONTEXTUAL_CHUNKING_MANUAL_PROVIDER_SETUP")
         info = next(
-            i for i in result.issues
-            if i.code == "CONTEXTUAL_CHUNKING_MANUAL_PROVIDER_SETUP"
+            i for i in result.issues if i.code == "CONTEXTUAL_CHUNKING_MANUAL_PROVIDER_SETUP"
         )
         assert "AWS_BEARER_TOKEN_BEDROCK" in info.message
 

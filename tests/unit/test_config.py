@@ -20,18 +20,17 @@ import pytest
 from pydantic import ValidationError
 
 from ragfactory.core.config import (
-    AgenticConfig,
     AdvancedGenerationConfig,
+    AgenticConfig,
     AnthropicLLMConfig,
     BGEM3EmbeddingConfig,
     BreakpointType,
     ChromaDBConfig,
-    CohereLLMConfig,
     CohereEmbeddingConfig,
+    CohereLLMConfig,
     CohereRerankerConfig,
     ColBERTRerankerConfig,
     ContextualChunkingConfig,
-    CrossEncoderRerankerConfig,
     CRAGConfig,
     DenseRetrievalConfig,
     DistanceMetric,
@@ -64,8 +63,8 @@ from ragfactory.core.config import (
     QdrantConfig,
     RAGPipelineConfig,
     RecursiveChunkingConfig,
-    RoutingConfig,
     RouteDefinition,
+    RoutingConfig,
     S3SourceConfig,
     SemanticChunkingConfig,
     SentenceWindowConfig,
@@ -74,7 +73,6 @@ from ragfactory.core.config import (
     VoyageEmbeddingConfig,
     WeaviateConfig,
 )
-
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -152,26 +150,32 @@ class TestValidConstruction:
 
 
 class TestNameValidation:
-    @pytest.mark.parametrize("valid_name", [
-        "my-pipeline",
-        "rag1",
-        "production-rag-v2",
-        "a",
-        "a1",
-    ])
+    @pytest.mark.parametrize(
+        "valid_name",
+        [
+            "my-pipeline",
+            "rag1",
+            "production-rag-v2",
+            "a",
+            "a1",
+        ],
+    )
     def test_valid_names_accepted(self, valid_name: str) -> None:
         cfg = _minimal_config(name=valid_name)
         assert cfg.name == valid_name
 
-    @pytest.mark.parametrize("invalid_name", [
-        "My-Pipeline",      # uppercase
-        "-starts-with-dash",
-        "has spaces",
-        "has_underscore",
-        "has.dot",
-        "",                 # empty
-        "A" * 65,           # too long
-    ])
+    @pytest.mark.parametrize(
+        "invalid_name",
+        [
+            "My-Pipeline",  # uppercase
+            "-starts-with-dash",
+            "has spaces",
+            "has_underscore",
+            "has.dot",
+            "",  # empty
+            "A" * 65,  # too long
+        ],
+    )
     def test_invalid_names_rejected(self, invalid_name: str) -> None:
         with pytest.raises(ValidationError):
             _minimal_config(name=invalid_name)
@@ -283,15 +287,11 @@ class TestChunkingValidators:
 
     def test_contextual_prompt_must_have_whole_document(self) -> None:
         with pytest.raises(ValidationError, match="WHOLE_DOCUMENT"):
-            ContextualChunkingConfig(
-                context_prompt="Summarize: {{CHUNK_CONTENT}}"
-            )
+            ContextualChunkingConfig(context_prompt="Summarize: {{CHUNK_CONTENT}}")
 
     def test_contextual_prompt_must_have_chunk_content(self) -> None:
         with pytest.raises(ValidationError, match="CHUNK_CONTENT"):
-            ContextualChunkingConfig(
-                context_prompt="Document: {{WHOLE_DOCUMENT}}"
-            )
+            ContextualChunkingConfig(context_prompt="Document: {{WHOLE_DOCUMENT}}")
 
     def test_contextual_default_prompt_is_valid(self) -> None:
         cfg = ContextualChunkingConfig()
@@ -457,9 +457,7 @@ class TestAdvancedGeneration:
         cfg = _minimal_config(
             generation=GenerationConfig(
                 llm=OpenAILLMConfig(),
-                advanced=AdvancedGenerationConfig(
-                    crag=CRAGConfig(web_search_provider="serper")
-                ),
+                advanced=AdvancedGenerationConfig(crag=CRAGConfig(web_search_provider="serper")),
             )
         )
         assert cfg.generation.advanced is not None
@@ -655,7 +653,11 @@ class TestYAMLRoundTrip:
     def test_yaml_version_field_present(self) -> None:
         cfg = _minimal_config()
         yaml_str = cfg.to_yaml()
-        assert "version: '1.0'" in yaml_str or "version: \"1.0\"" in yaml_str or "version: 1.0" in yaml_str
+        assert (
+            "version: '1.0'" in yaml_str
+            or 'version: "1.0"' in yaml_str
+            or "version: 1.0" in yaml_str
+        )
 
 
 # ─── 15. YAML File Round-Trip ─────────────────────────────────────────────────

@@ -57,11 +57,11 @@ def main() -> None:
     bump_version(new_version)
     print(f"✓ pyproject.toml updated to {new_version}")
 
-    run(f'git add pyproject.toml')
+    run("git add pyproject.toml")
     run(f'git commit -m "chore: bump version to {new_version}"')
-    run(f'git tag v{new_version}')
-    run(f'git push origin main')
-    run(f'git push origin v{new_version}')
+    run(f"git tag v{new_version}")
+    run("git push origin main")
+    run(f"git push origin v{new_version}")
 
     print(f"\n✓ Released v{new_version} — GitHub Actions will publish to PyPI.")
 

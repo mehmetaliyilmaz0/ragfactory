@@ -22,13 +22,14 @@ Coverage:
 
 from __future__ import annotations
 
+import typing
 from pathlib import Path
 
 import pytest
 
+from ragfactory.core import config as _cfg_mod
 from ragfactory.core.config import (
     AdvancedGenerationConfig,
-    AgenticConfig,
     AnthropicLLMConfig,
     BGEM3EmbeddingConfig,
     ChromaDBConfig,
@@ -60,8 +61,8 @@ from ragfactory.core.generator import (
     GeneratorError,
     GeneratorResult,
     TemplateLoader,
-    generate,
     _validate_python,
+    generate,
 )
 
 # Path to stub templates used for all engine tests
@@ -162,10 +163,7 @@ class TestAstValidation:
     def test_prompt_injection_safety(self) -> None:
         malicious_prompt = 'You are an assistant. {context} {question}\n"; import os; os.system("echo INJECTED"); #'
         cfg = _cfg(
-            generation=GenerationConfig(
-                llm=OpenAILLMConfig(),
-                prompt_template=malicious_prompt
-            )
+            generation=GenerationConfig(llm=OpenAILLMConfig(), prompt_template=malicious_prompt)
         )
         result = generate(cfg, template_dir=STUB_TEMPLATE_DIR)
         assert result.validation_passed is True
@@ -175,16 +173,16 @@ class TestAstValidation:
     def test_python_files_flagged_correctly(self) -> None:
         result = _gen()
         python_files = [f for f in result.generated_files if f.is_python]
-        non_python   = [f for f in result.generated_files if not f.is_python]
+        non_python = [f for f in result.generated_files if not f.is_python]
 
         python_paths = {f.path for f in python_files}
         non_py_paths = {f.path for f in non_python}
 
-        assert "pipeline.py"  in python_paths
+        assert "pipeline.py" in python_paths
         assert "ingestion.py" in python_paths
         assert "pyproject.toml" in non_py_paths
-        assert "README.md"      in non_py_paths
-        assert "Dockerfile"     in non_py_paths
+        assert "README.md" in non_py_paths
+        assert "Dockerfile" in non_py_paths
 
     def test_validate_python_valid_code(self) -> None:
         errors = _validate_python("x = 1\ny = 2\n", "test.py")
@@ -230,7 +228,7 @@ class TestFrameworkRouting:
         assert "llamaindex" in result.files["pipeline.py"]
 
     def test_langchain_and_llamaindex_produce_different_content(self) -> None:
-        r_lc  = _gen(_cfg(framework=Framework.LANGCHAIN))
+        r_lc = _gen(_cfg(framework=Framework.LANGCHAIN))
         r_lli = _gen(_cfg(framework=Framework.LLAMAINDEX))
         assert r_lc.files["pipeline.py"] != r_lli.files["pipeline.py"]
 
@@ -240,48 +238,58 @@ class TestFrameworkRouting:
 
 class TestDockerComposeConditional:
     def test_qdrant_includes_docker_compose(self) -> None:
-        result = _gen(_cfg(
-            indexing=IndexingConfig(
-                embedding=OpenAIEmbeddingConfig(),
-                vector_db=QdrantConfig(),
-            ),
-        ))
+        result = _gen(
+            _cfg(
+                indexing=IndexingConfig(
+                    embedding=OpenAIEmbeddingConfig(),
+                    vector_db=QdrantConfig(),
+                ),
+            )
+        )
         assert "docker-compose.yml" in result.files
 
     def test_weaviate_includes_docker_compose(self) -> None:
-        result = _gen(_cfg(
-            indexing=IndexingConfig(
-                embedding=OpenAIEmbeddingConfig(),
-                vector_db=WeaviateConfig(),
-            ),
-        ))
+        result = _gen(
+            _cfg(
+                indexing=IndexingConfig(
+                    embedding=OpenAIEmbeddingConfig(),
+                    vector_db=WeaviateConfig(),
+                ),
+            )
+        )
         assert "docker-compose.yml" in result.files
 
     def test_milvus_includes_docker_compose(self) -> None:
-        result = _gen(_cfg(
-            indexing=IndexingConfig(
-                embedding=OpenAIEmbeddingConfig(),
-                vector_db=MilvusConfig(),
-            ),
-        ))
+        result = _gen(
+            _cfg(
+                indexing=IndexingConfig(
+                    embedding=OpenAIEmbeddingConfig(),
+                    vector_db=MilvusConfig(),
+                ),
+            )
+        )
         assert "docker-compose.yml" in result.files
 
     def test_pgvector_includes_docker_compose(self) -> None:
-        result = _gen(_cfg(
-            indexing=IndexingConfig(
-                embedding=OpenAIEmbeddingConfig(),
-                vector_db=PgVectorConfig(),
-            ),
-        ))
+        result = _gen(
+            _cfg(
+                indexing=IndexingConfig(
+                    embedding=OpenAIEmbeddingConfig(),
+                    vector_db=PgVectorConfig(),
+                ),
+            )
+        )
         assert "docker-compose.yml" in result.files
 
     def test_chromadb_no_docker_compose(self) -> None:
-        result = _gen(_cfg(
-            indexing=IndexingConfig(
-                embedding=OpenAIEmbeddingConfig(),
-                vector_db=ChromaDBConfig(),
-            ),
-        ))
+        result = _gen(
+            _cfg(
+                indexing=IndexingConfig(
+                    embedding=OpenAIEmbeddingConfig(),
+                    vector_db=ChromaDBConfig(),
+                ),
+            )
+        )
         assert "docker-compose.yml" not in result.files
 
 
@@ -290,20 +298,24 @@ class TestDockerComposeConditional:
 
 class TestRerankerOptional:
     def test_no_reranker_no_reranker_stage(self) -> None:
-        result = _gen(_cfg(
-            post_retrieval=PostRetrievalConfig(reranker=None),
-        ))
+        result = _gen(
+            _cfg(
+                post_retrieval=PostRetrievalConfig(reranker=None),
+            )
+        )
         # reranker key should not be in the rendered stages embedded in pipeline
         # (indirectly: pipeline.py should not contain "RERANKER_TYPE")
         assert result.validation_passed is True
 
     def test_with_reranker_pipeline_contains_reranker_content(self) -> None:
-        result = _gen(_cfg(
-            retrieval=DenseRetrievalConfig(top_k=20),
-            post_retrieval=PostRetrievalConfig(
-                reranker=CohereRerankerConfig(top_n=5),
-            ),
-        ))
+        result = _gen(
+            _cfg(
+                retrieval=DenseRetrievalConfig(top_k=20),
+                post_retrieval=PostRetrievalConfig(
+                    reranker=CohereRerankerConfig(top_n=5),
+                ),
+            )
+        )
         assert result.validation_passed is True
         # Stub reranker template emits RERANKER_TYPE
         assert "RERANKER_TYPE" in result.files["pipeline.py"]
@@ -381,8 +393,14 @@ class TestStrictUndefined:
         )
         # Copy remaining needed templates from stub dir
         import shutil
-        for sub in ["stages/embedding", "stages/vectordb", "stages/retrieval",
-                    "stages/llm", "entrypoints"]:
+
+        for sub in [
+            "stages/embedding",
+            "stages/vectordb",
+            "stages/retrieval",
+            "stages/llm",
+            "entrypoints",
+        ]:
             src = STUB_TEMPLATE_DIR / sub
             dst = tmp_path / sub
             if src.exists():
@@ -399,6 +417,7 @@ class TestStrictUndefined:
 class TestSyntaxErrorInGeneratedPython:
     def test_bad_python_template_produces_error(self, tmp_path: Path) -> None:
         import shutil
+
         # Copy all stub templates
         shutil.copytree(STUB_TEMPLATE_DIR, tmp_path, dirs_exist_ok=True)
         # Overwrite pipeline.py.j2 with invalid Python
@@ -481,9 +500,7 @@ class TestAllOptionalNone:
         ]
         for cfg in combos:
             result = generate(cfg, template_dir=STUB_TEMPLATE_DIR)
-            assert result.validation_passed is True, (
-                f"Failed for {cfg.name}: {result.errors}"
-            )
+            assert result.validation_passed is True, f"Failed for {cfg.name}: {result.errors}"
 
 
 # ─── 13. TemplateLoader unit tests ───────────────────────────────────────────
@@ -492,7 +509,6 @@ class TestAllOptionalNone:
 class TestTemplateLoader:
     def test_render_stage_valid(self) -> None:
         loader = TemplateLoader(STUB_TEMPLATE_DIR)
-        from ragfactory.core.config import RecursiveChunkingConfig
         ctx = {
             "chunking": RecursiveChunkingConfig(),
             "config": _cfg(),
@@ -523,10 +539,6 @@ class TestTemplateLoader:
 # ─── 14. Stub template coverage meta-test (C2) ───────────────────────────────
 
 
-import typing
-from ragfactory.core import config as _cfg_mod
-
-
 def _union_type_literals(union_annotation: object) -> list[str]:
     """Extract the `type` field default from every member of a discriminated union.
 
@@ -547,12 +559,12 @@ def _union_type_literals(union_annotation: object) -> list[str]:
 
 
 _STUB_STAGE_UNIONS = [
-    (_cfg_mod.ChunkingConfig,  "stages/chunking"),
+    (_cfg_mod.ChunkingConfig, "stages/chunking"),
     (_cfg_mod.EmbeddingConfig, "stages/embedding"),
-    (_cfg_mod.VectorDBConfig,  "stages/vectordb"),
+    (_cfg_mod.VectorDBConfig, "stages/vectordb"),
     (_cfg_mod.RetrievalConfig, "stages/retrieval"),
-    (_cfg_mod.RerankerConfig,  "stages/reranker"),
-    (_cfg_mod.LLMConfig,       "stages/llm"),
+    (_cfg_mod.RerankerConfig, "stages/reranker"),
+    (_cfg_mod.LLMConfig, "stages/llm"),
 ]
 
 _stub_params = [
@@ -587,6 +599,7 @@ class TestStubTemplateCoverage:
 class TestEvaluationGeneration:
     def test_eval_generation_when_configured(self) -> None:
         from ragfactory.core.config import EvaluationConfig
+
         cfg = _cfg(evaluation=EvaluationConfig(framework="ragas"))
         result = generate(cfg, template_dir=STUB_TEMPLATE_DIR)
         assert result.validation_passed is True
@@ -617,13 +630,14 @@ class TestAgenticGeneration:
 
     def test_agentic_dependencies_langchain(self) -> None:
         from ragfactory.core.versions import get_dependencies
+
         cfg = _cfg(framework="langchain", flow_type="agentic")
         deps = get_dependencies(cfg)
         assert any(d.startswith("langgraph") for d in deps)
 
     def test_agentic_dependencies_llamaindex(self) -> None:
         from ragfactory.core.versions import get_dependencies
+
         cfg = _cfg(framework="llamaindex", flow_type="agentic")
         deps = get_dependencies(cfg)
         assert not any(d.startswith("langgraph") for d in deps)
-

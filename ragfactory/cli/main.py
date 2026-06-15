@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Annotated, Optional, cast
+from typing import Annotated, Any, cast
 
 import typer
 import yaml
@@ -34,57 +34,57 @@ _DENSE_ONLY_DBS: frozenset[str] = frozenset({"chromadb", "pinecone"})
 
 # CLI accepts "cohere"; config discriminator requires "cohere_llm"
 _LLM_TYPE_MAP: dict[str, str] = {
-    "openai":    "openai",
+    "openai": "openai",
     "anthropic": "anthropic",
-    "cohere":    "cohere_llm",
-    "ollama":    "ollama",
+    "cohere": "cohere_llm",
+    "ollama": "ollama",
 }
 
 _COMPONENTS: dict[str, list[tuple[str, str]]] = {
     "chunking": [
-        ("fixed",           "Fixed-size token windows. Simple baseline."),
-        ("recursive",       "Hierarchical separators. Production default."),
-        ("semantic",        "Embedding-based breakpoints. Handles topic drift."),
-        ("contextual",      "Prepends LLM context to each chunk. Best recall (+49-67%)."),
-        ("late",            "Jina Late Chunking. Token-level pooling after full encoding."),
-        ("page_level",      "One chunk per PDF page. Good for structured docs."),
-        ("proposition",     "Extracts atomic propositions before indexing. Higher cost."),
+        ("fixed", "Fixed-size token windows. Simple baseline."),
+        ("recursive", "Hierarchical separators. Production default."),
+        ("semantic", "Embedding-based breakpoints. Handles topic drift."),
+        ("contextual", "Prepends LLM context to each chunk. Best recall (+49-67%)."),
+        ("late", "Jina Late Chunking. Token-level pooling after full encoding."),
+        ("page_level", "One chunk per PDF page. Good for structured docs."),
+        ("proposition", "Extracts atomic propositions before indexing. Higher cost."),
     ],
     "embedding": [
-        ("openai",  "OpenAI text-embedding-3-small/large. Default 1536d."),
-        ("cohere",  "Cohere embed-v3. 1024d. Multilingual."),
-        ("voyage",  "Voyage AI. Best retrieval benchmarks (MTEB 2024)."),
-        ("gemini",  "Google text-embedding-004. 768d."),
-        ("bge_m3",  "BAAI/BGE-M3. Self-hosted. Dense+sparse+colbert."),
-        ("nomic",   "Nomic embed-text. Self-hosted or API. 768d."),
-        ("jina",    "Jina embeddings-v3. 1024d. Long context (8192 tokens)."),
+        ("openai", "OpenAI text-embedding-3-small/large. Default 1536d."),
+        ("cohere", "Cohere embed-v3. 1024d. Multilingual."),
+        ("voyage", "Voyage AI. Best retrieval benchmarks (MTEB 2024)."),
+        ("gemini", "Google text-embedding-004. 768d."),
+        ("bge_m3", "BAAI/BGE-M3. Self-hosted. Dense+sparse+colbert."),
+        ("nomic", "Nomic embed-text. Self-hosted or API. 768d."),
+        ("jina", "Jina embeddings-v3. 1024d. Long context (8192 tokens)."),
     ],
     "vectordb": [
         ("chromadb", "Embedded, in-process. Prototyping only."),
-        ("qdrant",   "Rust. Production default. 8500-12000 QPS. Best metadata filtering."),
+        ("qdrant", "Rust. Production default. 8500-12000 QPS. Best metadata filtering."),
         ("pinecone", "Serverless. Zero-ops. Up to 1.4B vectors."),
         ("weaviate", "Modular. Native hybrid. Multi-tenancy."),
-        ("milvus",   "Distributed. GPU-accelerated (CAGRA). Billion-scale."),
+        ("milvus", "Distributed. GPU-accelerated (CAGRA). Billion-scale."),
         ("pgvector", "PostgreSQL extension. Best for existing Postgres stacks."),
     ],
     "retrieval": [
-        ("dense",           "Pure vector similarity. Fast baseline."),
-        ("hybrid_rrf",      "BM25 + dense via Reciprocal Rank Fusion. +15-30% recall."),
+        ("dense", "Pure vector similarity. Fast baseline."),
+        ("hybrid_rrf", "BM25 + dense via Reciprocal Rank Fusion. +15-30% recall."),
         ("hybrid_weighted", "BM25 + dense with tunable alpha weight."),
-        ("small_to_big",    "Retrieve child chunks, return parent context."),
+        ("small_to_big", "Retrieve child chunks, return parent context."),
         ("sentence_window", "Retrieve sentence, expand to window."),
     ],
     "reranker": [
-        ("cohere",        "Cohere Rerank API. Fast, no GPU needed."),
+        ("cohere", "Cohere Rerank API. Fast, no GPU needed."),
         ("cross_encoder", "Cross-encoder. Best quality, GPU recommended."),
-        ("colbert",       "ColBERT (RAGatouille). Token-level interaction."),
-        ("flashrank",     "FlashRank. Fastest local reranker. CPU-friendly."),
+        ("colbert", "ColBERT (RAGatouille). Token-level interaction."),
+        ("flashrank", "FlashRank. Fastest local reranker. CPU-friendly."),
     ],
     "llm": [
-        ("openai",    "GPT-4o / GPT-4o-mini. Default gpt-4o-mini."),
+        ("openai", "GPT-4o / GPT-4o-mini. Default gpt-4o-mini."),
         ("anthropic", "Claude Sonnet/Opus/Haiku. Default claude-sonnet-4-6."),
-        ("cohere",    "Command-R+. Grounding optimised."),
-        ("ollama",    "Local inference. Zero API cost. Requires Ollama."),
+        ("cohere", "Command-R+. Grounding optimised."),
+        ("ollama", "Local inference. Zero API cost. Requires Ollama."),
     ],
 }
 
@@ -109,7 +109,7 @@ def _version_callback(value: bool) -> None:
 @app.callback()
 def _root(
     version: Annotated[
-        Optional[bool],
+        bool | None,
         typer.Option(
             "--version",
             callback=_version_callback,
@@ -186,16 +186,16 @@ def _load_config(path: Path) -> RAGPipelineConfig:
             raise typer.Exit(1)
     except yaml.YAMLError as exc:
         typer.echo(f"Error: Failed to parse YAML: {exc}", err=True)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
     except json.JSONDecodeError as exc:
         typer.echo(f"Error: Failed to parse JSON: {exc}", err=True)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
 
     try:
         return RAGPipelineConfig.model_validate(raw)
     except ValidationError as exc:
         typer.echo(f"Error: Invalid config:\n{exc}", err=True)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
 
 
 def _resolve_retrieval(vector_db: str, retrieval: str | None) -> str:
@@ -224,23 +224,23 @@ def _build_config_from_flags(
     # Build kwargs incrementally — omit post_retrieval when no reranker so Pydantic
     # uses its default_factory instead of receiving None and failing validation.
     kwargs: dict[str, object] = {
-        "name":       name,
-        "framework":  framework,
+        "name": name,
+        "framework": framework,
         "indexing": {
-            "chunking":  {"type": chunking},
+            "chunking": {"type": chunking},
             "embedding": {"type": embedding},
             "vector_db": {"type": vector_db},
         },
-        "retrieval":   {"type": resolved_retrieval},   # top-level, not inside indexing
-        "generation":  {"llm": {"type": _LLM_TYPE_MAP[llm]}},
+        "retrieval": {"type": resolved_retrieval},  # top-level, not inside indexing
+        "generation": {"llm": {"type": _LLM_TYPE_MAP[llm]}},
     }
     if reranker != "none":
         kwargs["post_retrieval"] = {"reranker": {"type": reranker}}
     try:
-        return RAGPipelineConfig(**kwargs)
+        return RAGPipelineConfig(**cast(dict[str, Any], kwargs))
     except ValidationError as exc:
         typer.echo(f"Error: Invalid combination of flags:\n{exc}", err=True)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
 
 
 def _write_output(
@@ -305,9 +305,10 @@ def _print_file_summary(written: list[Path], console: Console) -> None:
 @app.command(name="options")
 def options_cmd(
     component: Annotated[
-        Optional[str],
+        str | None,
         typer.Option(
-            "--component", "-c",
+            "--component",
+            "-c",
             help=f"Filter by component: {', '.join(_VALID_COMPONENTS)}",
         ),
     ] = None,
@@ -321,21 +322,17 @@ def options_cmd(
 
     if component is not None and component not in _VALID_COMPONENTS:
         typer.echo(
-            f"Error: Unknown component '{component}'. "
-            f"Choose from: {', '.join(_VALID_COMPONENTS)}",
+            f"Error: Unknown component '{component}'. Choose from: {', '.join(_VALID_COMPONENTS)}",
             err=True,
         )
         raise typer.Exit(1)
 
     if as_json:
         if component is not None:
-            payload: object = [
-                {"type": t, "description": d} for t, d in _COMPONENTS[component]
-            ]
+            payload: object = [{"type": t, "description": d} for t, d in _COMPONENTS[component]]
         else:
             payload = {
-                k: [{"type": t, "description": d} for t, d in v]
-                for k, v in _COMPONENTS.items()
+                k: [{"type": t, "description": d} for t, d in v] for k, v in _COMPONENTS.items()
             }
         typer.echo(json.dumps(payload, indent=2))
         return
@@ -386,7 +383,7 @@ def generate_cmd(
         typer.Option("--config", "-c", help="Path to pipeline config (.yaml or .json)"),
     ],
     output: Annotated[
-        Optional[Path],
+        Path | None,
         typer.Option("--output", "-o", help="Output directory (default: ./{config.name})"),
     ] = None,
     force: Annotated[
@@ -454,7 +451,7 @@ def init_cmd(
         ),
     ] = "chromadb",
     retrieval: Annotated[
-        Optional[str],
+        str | None,
         typer.Option(
             help=(
                 "Retrieval strategy (auto-selected if omitted): "
@@ -478,11 +475,11 @@ def init_cmd(
         ),
     ] = "openai",
     output: Annotated[
-        Optional[Path],
+        Path | None,
         typer.Option("--output", "-o", help="Output directory (default: ./{name})"),
     ] = None,
     save_config: Annotated[
-        Optional[Path],
+        Path | None,
         typer.Option("--save-config", help="Write config YAML to this path."),
     ] = None,
 ) -> None:
@@ -547,15 +544,16 @@ def api_cmd(
     """Start the RAGFactory REST API server."""
     try:
         import uvicorn
+
         from ragfactory.api.main import app as api_app  # noqa: F401
     except ImportError:
         typer.echo(
             "Error: API dependencies not found.\n"
             "Please install ragfactory with the [api] extra:\n"
-            "  pip install \"ragfactory[api]\"",
+            '  pip install "ragfactory[api]"',
             err=True,
         )
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
 
     typer.echo(f"Starting RAGFactory API server at http://{host}:{port}")
     uvicorn.run("ragfactory.api.main:app", host=host, port=port, log_level="info")

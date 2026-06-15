@@ -17,11 +17,11 @@ from __future__ import annotations
 
 _CLOUD_PROVIDER_PREFIXES: tuple[tuple[tuple[str, ...], str], ...] = (
     (("gpt-", "o1-", "o1", "text-embedding-", "text-"), "openai"),
-    (("claude-",),                                        "anthropic"),
-    (("command",),                                        "cohere_llm"),
-    (("gemini-",),                                        "gemini"),
-    (("mistral-", "mistral"),                             "mistral"),
-    (("bedrock/",),                                       "bedrock"),
+    (("claude-",), "anthropic"),
+    (("command",), "cohere_llm"),
+    (("gemini-",), "gemini"),
+    (("mistral-", "mistral"), "mistral"),
+    (("bedrock/",), "bedrock"),
 )
 
 # ─── Env-var lookup ────────────────────────────────────────────────────────────
@@ -29,22 +29,24 @@ _CLOUD_PROVIDER_PREFIXES: tuple[tuple[tuple[str, ...], str], ...] = (
 # Used by both validator (warning messages) and generator (.env.example output).
 
 PROVIDER_ENV_VAR: dict[str, str] = {
-    "openai":     "OPENAI_API_KEY",
-    "anthropic":  "ANTHROPIC_API_KEY",
+    "openai": "OPENAI_API_KEY",
+    "anthropic": "ANTHROPIC_API_KEY",
     "cohere_llm": "COHERE_API_KEY",
-    "gemini":     "GOOGLE_API_KEY",
-    "mistral":    "MISTRAL_API_KEY",
-    "bedrock":    "AWS_BEARER_TOKEN_BEDROCK",
+    "gemini": "GOOGLE_API_KEY",
+    "mistral": "MISTRAL_API_KEY",
+    "bedrock": "AWS_BEARER_TOKEN_BEDROCK",
 }
 
 # Providers for which ragfactory can automatically scaffold contextual chunking
 # environment variables in the generated project.
-_AUTOMATIC_CONTEXTUAL_PROVIDER_SCAFFOLDING: frozenset[str] = frozenset({
-    "openai",
-    "anthropic",
-    "cohere_llm",
-    "gemini",
-})
+_AUTOMATIC_CONTEXTUAL_PROVIDER_SCAFFOLDING: frozenset[str] = frozenset(
+    {
+        "openai",
+        "anthropic",
+        "cohere_llm",
+        "gemini",
+    }
+)
 
 
 # ─── Public functions ──────────────────────────────────────────────────────────

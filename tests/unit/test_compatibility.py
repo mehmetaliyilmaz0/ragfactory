@@ -17,11 +17,9 @@ from ragfactory.core.compatibility import (
     INCOMPATIBLE,
     WARNINGS,
     CompatibilityWarning,
-    CrossFieldRule,
     IncompatiblePair,
     Severity,
 )
-
 
 # ─── 1. Structural integrity ──────────────────────────────────────────────────
 
@@ -97,9 +95,7 @@ class TestCompatibilityWarningIntegrity:
             w.message = "mutated"  # type: ignore[misc]
 
     def test_minimum_count(self) -> None:
-        assert len(WARNINGS) >= 9, (
-            f"Expected at least 9 warnings, got {len(WARNINGS)}"
-        )
+        assert len(WARNINGS) >= 9, f"Expected at least 9 warnings, got {len(WARNINGS)}"
 
 
 class TestCrossFieldRuleIntegrity:

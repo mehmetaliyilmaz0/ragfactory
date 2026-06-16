@@ -8,9 +8,10 @@ import zipfile
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, status
-from fastapi.responses import StreamingResponse
+from fastapi.responses import Response
 from pydantic import ValidationError
 
+from ragfactory import __version__
 from ragfactory.core.config import RAGPipelineConfig
 from ragfactory.core.generator import generate as core_generate
 from ragfactory.core.validator import validate as core_validate
@@ -18,7 +19,7 @@ from ragfactory.core.validator import validate as core_validate
 app = FastAPI(
     title="RAGFactory API",
     description="Programmatic RAG pipeline generation and validation engine.",
-    version="0.1.0",
+    version=__version__,
 )
 
 
@@ -29,7 +30,7 @@ def validate_config(config: dict[str, Any]) -> dict[str, Any]:
         cfg = RAGPipelineConfig.model_validate(config)
     except ValidationError as e:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=422,
             detail=json.loads(e.json()),
         ) from e
 
@@ -76,13 +77,13 @@ def validate_config(config: dict[str, Any]) -> dict[str, Any]:
 
 
 @app.post("/api/v1/generate", tags=["generation"])
-def generate_pipeline(config: dict[str, Any]) -> StreamingResponse:
+def generate_pipeline(config: dict[str, Any]) -> Response:
     """Generate and return a ZIP archive containing the scaffolded RAG pipeline project."""
     try:
         cfg = RAGPipelineConfig.model_validate(config)
     except ValidationError as e:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=422,
             detail=json.loads(e.json()),
         ) from e
 
@@ -114,10 +115,8 @@ def generate_pipeline(config: dict[str, Any]) -> StreamingResponse:
         # Write the serialized clean config YAML
         zip_file.writestr("config.yaml", gen_res.config_yaml)
 
-    zip_buffer.seek(0)
-
-    return StreamingResponse(
-        zip_buffer,
+    return Response(
+        content=zip_buffer.getvalue(),
         media_type="application/zip",
         headers={"Content-Disposition": f"attachment; filename={cfg.name}.zip"},
     )

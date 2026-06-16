@@ -38,9 +38,8 @@ dev = [
     "types-PyYAML>=6.0.12",
 ]
 api = [
-    "fastapi>=0.110.0",
-    "uvicorn>=0.28.0",
-    "httpx>=0.27.0",  # for testing
+    "fastapi>=0.110.0,<0.137.0",
+    "uvicorn>=0.28.0,<1.0.0",
 ]
 
 [project.scripts]
@@ -70,10 +69,6 @@ line-length = 100
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "UP", "ANN", "B", "SIM"]
-ignore = [
-    "ANN101",  # missing type annotation for self
-    "ANN102",  # missing type annotation for cls
-]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = ["ANN", "E501"]  # no type annotations required in tests, line too long allowed

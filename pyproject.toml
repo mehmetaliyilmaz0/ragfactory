@@ -76,6 +76,10 @@ line-length = 100
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "UP", "ANN", "B", "SIM"]
 
+[tool.ruff.format]
+# Historical research snippets are not maintained as executable Python sources.
+exclude = ["*.md"]
+
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = ["ANN", "E501"]  # no type annotations required in tests, line too long allowed
 

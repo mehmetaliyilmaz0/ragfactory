@@ -36,7 +36,7 @@ class _ColBERTRetriever(BaseRetriever):
 
 
 def build_reranker(retriever: Any) -> Any:
-    rag = RAGPretrainedModel.from_pretrained("{{ reranker.model }}")
+    rag = RAGPretrainedModel.from_pretrained({{ reranker.model | to_py_literal }})
     return _ColBERTRetriever(base_retriever=retriever, rag_model=rag, top_n={{ reranker.top_n }})
 {% elif framework == "llamaindex" %}
 from ragatouille import RAGPretrainedModel
@@ -73,6 +73,6 @@ class _ColBERTPostprocessor(BaseNodePostprocessor):
 
 
 def build_reranker() -> Any:
-    rag = RAGPretrainedModel.from_pretrained("{{ reranker.model }}")
+    rag = RAGPretrainedModel.from_pretrained({{ reranker.model | to_py_literal }})
     return _ColBERTPostprocessor(rag_model=rag, top_n={{ reranker.top_n }})
 {% endif %}

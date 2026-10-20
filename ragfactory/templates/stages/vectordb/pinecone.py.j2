@@ -11,10 +11,10 @@ from pinecone import Pinecone
 def build_vectordb(embedder: Any) -> Any:
 {% if framework == "langchain" %}
     pc = Pinecone(api_key=os.environ["PINECONE_API_KEY"])
-    index = pc.Index("{{ vector_db.index_name }}")
+    index = pc.Index({{ vector_db.index_name | to_py_literal }})
     return PineconeVectorStore(index=index, embedding=embedder)
 {% elif framework == "llamaindex" %}
     pc = Pinecone(api_key=os.environ["PINECONE_API_KEY"])
-    pinecone_index = pc.Index("{{ vector_db.index_name }}")
+    pinecone_index = pc.Index({{ vector_db.index_name | to_py_literal }})
     return PineconeVectorStore(pinecone_index=pinecone_index)
 {% endif %}

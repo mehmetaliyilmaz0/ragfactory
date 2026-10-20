@@ -6,13 +6,15 @@ from __future__ import annotations
 
 import os
 from typing import Any
+from dotenv import load_dotenv
 
-from llama_index.core import Settings
+from llama_index.core import PromptTemplate, Settings, get_response_synthesizer
 from llama_index.core.query_engine import RetrieverQueryEngine
 
 # ─── Prompt template ──────────────────────────────────────────────────────────
 # {context_str} and {query_str} are LlamaIndex built-in template variables.
 _PROMPT_TEMPLATE = {{ generation.prompt_template | tojson_py }}
+load_dotenv()
 
 # ─── Stage: Chunking ──────────────────────────────────────────────────────────
 {{ stages.chunking }}
@@ -38,7 +40,9 @@ _PROMPT_TEMPLATE = {{ generation.prompt_template | tojson_py }}
 # ─── Pipeline ─────────────────────────────────────────────────────────────────
 
 
-def run_pipeline(query: str, return_contexts: bool = False) -> str | tuple[str, list[str]]:
+async def run_pipeline_async(
+    query: str, return_contexts: bool = False
+) -> str | tuple[str, list[str]]:
     """Run the full {{ pipeline_name }} RAG pipeline.
 
     Args:
@@ -77,7 +81,8 @@ def run_pipeline(query: str, return_contexts: bool = False) -> str | tuple[str, 
         num_queries={{ pre_retrieval.query_rewriting.num_rewrites }},
         mode="reciprocal_rerank",
     )
-{% elif pre_retrieval.hyde is not none and pre_retrieval.hyde.enabled %}
+{% endif %}
+{% if pre_retrieval.hyde is not none and pre_retrieval.hyde.enabled %}
     # ── HyDE — Hypothetical Document Embeddings ───────────────────────────────
     from llama_index.core.indices.query.query_transform.base import HyDEQueryTransform
     _hyde_transform = HyDEQueryTransform(include_original=True)
@@ -86,6 +91,12 @@ def run_pipeline(query: str, return_contexts: bool = False) -> str | tuple[str, 
     query_engine = RetrieverQueryEngine(
         retriever=retriever,
         node_postprocessors=node_postprocessors,
+        response_synthesizer=get_response_synthesizer(
+            text_qa_template=PromptTemplate(
+                _PROMPT_TEMPLATE,
+                template_var_mappings={"context_str": "context", "query_str": "question"},
+            ),
+        ),
     )
 
 {% if pre_retrieval.hyde is not none and pre_retrieval.hyde.enabled %}
@@ -93,8 +104,15 @@ def run_pipeline(query: str, return_contexts: bool = False) -> str | tuple[str, 
     query_engine = TransformQueryEngine(query_engine, query_transform=_hyde_transform)
 {% endif %}
 
-    response = query_engine.query(query)
+    response = await query_engine.aquery(query)
     if return_contexts:
         contexts = [node.node.get_content() for node in response.source_nodes]
         return str(response), contexts
     return str(response)
+
+
+def run_pipeline(query: str, return_contexts: bool = False) -> str | tuple[str, list[str]]:
+    """Synchronously run the pipeline; use run_pipeline_async from async code."""
+    import asyncio
+
+    return asyncio.run(run_pipeline_async(query, return_contexts))

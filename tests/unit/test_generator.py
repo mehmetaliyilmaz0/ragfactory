@@ -42,7 +42,6 @@ from ragfactory.core.config import (
     HybridRRFConfig,
     IndexingConfig,
     JinaEmbeddingConfig,
-    LateChunkingConfig,
     MilvusConfig,
     OllamaLLMConfig,
     OpenAIEmbeddingConfig,
@@ -477,10 +476,10 @@ class TestAllOptionalNone:
                 ),
                 generation=GenerationConfig(llm=OllamaLLMConfig()),
             ),
-            # late chunking + jina + qdrant
+            # jina + qdrant, with an implemented chunking strategy
             _cfg(
                 indexing=IndexingConfig(
-                    chunking=LateChunkingConfig(),
+                    chunking=RecursiveChunkingConfig(),
                     embedding=JinaEmbeddingConfig(
                         model="jina-embeddings-v3",
                         late_chunking=True,

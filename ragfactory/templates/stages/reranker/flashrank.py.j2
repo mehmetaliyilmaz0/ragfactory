@@ -1,11 +1,11 @@
 {% if framework == "langchain" %}
-from langchain.retrievers.document_compressors import FlashrankRerank
-from langchain.retrievers import ContextualCompressionRetriever
+from langchain_classic.retrievers import ContextualCompressionRetriever
+from langchain_classic.retrievers.document_compressors import FlashrankRerank
 from typing import Any
 
 
 def build_reranker(retriever: Any) -> Any:
-    compressor = FlashrankRerank(model="{{ reranker.model }}", top_n={{ reranker.top_n }})
+    compressor = FlashrankRerank(model={{ reranker.model | to_py_literal }}, top_n={{ reranker.top_n }})
     return ContextualCompressionRetriever(
         base_compressor=compressor,
         base_retriever=retriever,
@@ -17,7 +17,7 @@ from typing import Any
 
 def build_reranker() -> Any:
     return FlashrankRerank(
-        model="{{ reranker.model }}",
+        model={{ reranker.model | to_py_literal }},
         top_n={{ reranker.top_n }},
     )
 {% endif %}

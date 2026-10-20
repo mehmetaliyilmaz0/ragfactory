@@ -1,7 +1,7 @@
 # ── Retrieval: Sentence Window ────────────────────────────────────────────
 {% if framework == "langchain" %}
-from langchain.retrievers import ParentDocumentRetriever
-from langchain.storage import InMemoryStore
+from langchain_classic.retrievers import ParentDocumentRetriever
+from langchain_classic.storage import InMemoryStore
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 {% elif framework == "llamaindex" %}
 from llama_index.core.postprocessor import MetadataReplacementPostProcessor

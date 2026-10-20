@@ -357,7 +357,7 @@ class TestInit:
 
 
 class TestInitAdditional:
-    def test_init_accepts_proposition_chunking(self, tmp_path: Path) -> None:
+    def test_init_rejects_schema_only_proposition_chunking(self, tmp_path: Path) -> None:
         out = tmp_path / "proposition-test"
         result = runner.invoke(
             app,
@@ -373,9 +373,9 @@ class TestInitAdditional:
                 str(out),
             ],
         )
-        assert result.exception is None
-        assert result.exit_code == 0
-        assert (out / "pipeline.py").exists()
+        assert result.exit_code == 1
+        assert "UNSUPPORTED_CHUNKING" in result.output
+        assert not out.exists()
 
     def test_init_rejects_sentence_window_chunking(self, tmp_path: Path) -> None:
         out = tmp_path / "bad-chunking"

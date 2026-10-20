@@ -12,7 +12,7 @@ import weaviate
 
 def build_vectordb(embedder: Any) -> Any:
 {% if framework == "langchain" %}
-    _url = os.environ.get("WEAVIATE_URL", "{{ vector_db.url }}")
+    _url = os.environ.get("WEAVIATE_URL", {{ vector_db.url | to_py_literal }})
     _p   = urllib.parse.urlparse(_url)
     weaviate_client = weaviate.connect_to_custom(
         http_host=_p.hostname or "localhost",
@@ -24,12 +24,12 @@ def build_vectordb(embedder: Any) -> Any:
     )
     return WeaviateVectorStore(
         client=weaviate_client,
-        index_name="{{ vector_db.class_name }}",
+        index_name={{ vector_db.class_name | to_py_literal }},
         text_key="text",
         embedding=embedder,
     )
 {% elif framework == "llamaindex" %}
-    _url = os.environ.get("WEAVIATE_URL", "{{ vector_db.url }}")
+    _url = os.environ.get("WEAVIATE_URL", {{ vector_db.url | to_py_literal }})
     _p   = urllib.parse.urlparse(_url)
     weaviate_client = weaviate.connect_to_custom(
         http_host=_p.hostname or "localhost",
@@ -41,6 +41,6 @@ def build_vectordb(embedder: Any) -> Any:
     )
     return WeaviateVectorStore(
         weaviate_client=weaviate_client,
-        index_name="{{ vector_db.class_name }}",
+        index_name={{ vector_db.class_name | to_py_literal }},
     )
 {% endif %}

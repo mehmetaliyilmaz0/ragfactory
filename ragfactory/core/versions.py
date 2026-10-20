@@ -2,7 +2,8 @@
 Dependency manifest for RAGFactory generated pipelines.
 
 Design principles:
-  - NO auto-resolve. Every version range here has been manually tested.
+  - Explicit ranges, not runtime auto-resolution. Representative profiles are tested;
+    optional combinations still need their own resolver and runtime checks.
   - Ranges are intentionally conservative: pin the major, allow minor/patch bumps.
   - When a framework releases a new major, this file is updated + regression-tested
     before the new version is accepted.
@@ -36,75 +37,66 @@ DEPENDENCY_MATRIX: dict[str, dict[str, dict[str, list[str]]]] = {
     "langchain": {
         "base": {
             "_": [
-                "langchain>=0.3.0,<0.4.0",
-                "langchain-core>=0.3.0,<0.4.0",
-                "langchain-community>=0.3.0,<0.4.0",
-                "langchain-text-splitters>=0.3.0,<0.4.0",
+                "langchain>=1.4,<2",
+                "langchain-core>=1,<2",
+                "langchain-text-splitters>=1,<2",
                 "fastapi>=0.110.0",
-                "uvicorn>=0.28.0",
+                "uvicorn>=0.28.0,<1.0.0",
+                "python-dotenv>=1,<2",
             ]
         },
         "embedding": {
             "openai": [
-                "langchain-openai>=0.2.0,<0.3.0",
-                "openai>=1.40.0,<2.0.0",
+                "langchain-openai>=1,<2",
             ],
             "cohere": [
-                "langchain-cohere>=0.3.0,<0.4.0",
-                "cohere>=5.0.0,<6.0.0",
+                "langchain-cohere>=0.6,<0.7",
             ],
             "voyage": [
-                "voyageai>=0.3.0,<1.0.0",
+                "langchain-voyageai>=0.4,<0.5",
             ],
             "gemini": [
-                "langchain-google-genai>=2.0.0,<3.0.0",
-                "google-generativeai>=0.7.0,<1.0.0",
+                "langchain-google-genai>=4,<5",
             ],
             "bge_m3": [
-                "FlagEmbedding>=1.2.0,<2.0.0",
+                "langchain-huggingface>=1.2,<2",
+                "sentence-transformers>=3,<6",
                 "torch>=2.0.0",
             ],
             "nomic": [
-                "nomic>=3.0.0,<4.0.0",
+                "langchain-nomic>=0.3,<1",
             ],
             "jina": [
-                "langchain-community>=0.3.0,<0.4.0",  # uses JinaEmbeddings via community
-                "requests>=2.31.0",
+                "langchain-community>=0.4,<0.5",
             ],
         },
         "vectordb": {
             "chromadb": [
-                "langchain-chroma>=0.1.0,<0.2.0",
-                "chromadb>=0.5.0,<1.0.0",
+                "langchain-chroma>=1,<2",
             ],
             "qdrant": [
-                "langchain-qdrant>=0.2.0,<0.3.0",
-                "qdrant-client>=1.7.0,<2.0.0",
+                "langchain-qdrant>=1,<2",
             ],
             "pinecone": [
-                "langchain-pinecone>=0.2.0,<0.3.0",
-                "pinecone-client>=3.0.0,<4.0.0",
+                "langchain-pinecone>=0.2,<1",
             ],
             "weaviate": [
-                "langchain-weaviate>=0.0.3,<0.1.0",
-                "weaviate-client>=4.0.0,<5.0.0",
+                "langchain-weaviate>=0.0.8,<0.1",
             ],
             "milvus": [
-                "langchain-milvus>=0.1.0,<0.2.0",
-                "pymilvus>=2.4.0,<3.0.0",
+                "langchain-milvus>=0.4,<0.5",
             ],
             "pgvector": [
-                "langchain-postgres>=0.0.9,<0.1.0",
-                "psycopg[binary]>=3.1.0,<4.0.0",
-                "pgvector>=0.2.0",
+                "langchain-postgres>=0.0.15,<0.1",
             ],
         },
         "reranker": {
             "cohere": [
-                "cohere>=5.0.0,<6.0.0",
+                "langchain-cohere>=0.6,<0.7",
             ],
             "cross_encoder": [
-                "sentence-transformers>=3.0.0,<4.0.0",
+                "langchain-community>=0.4,<0.5",
+                "sentence-transformers>=3,<6",
                 "torch>=2.0.0",
             ],
             "colbert": [
@@ -116,20 +108,31 @@ DEPENDENCY_MATRIX: dict[str, dict[str, dict[str, list[str]]]] = {
         },
         "llm": {
             "openai": [
-                "langchain-openai>=0.2.0,<0.3.0",
-                "openai>=1.40.0,<2.0.0",
+                "langchain-openai>=1,<2",
             ],
             "anthropic": [
-                "langchain-anthropic>=0.3.0,<0.4.0",
-                "anthropic>=0.34.0,<1.0.0",
+                "langchain-anthropic>=1,<2",
             ],
             "cohere_llm": [
-                "langchain-cohere>=0.3.0,<0.4.0",
-                "cohere>=5.0.0,<6.0.0",
+                "langchain-cohere>=0.6,<0.7",
             ],
             "ollama": [
-                "langchain-ollama>=0.2.0,<0.3.0",
+                "langchain-ollama>=1,<2",
             ],
+        },
+        "retrieval": {
+            "hybrid_rrf": [
+                "langchain-classic>=1,<2",
+                "langchain-community>=0.4,<0.5",
+                "rank-bm25>=0.2,<0.3",
+            ],
+            "hybrid_weighted": [
+                "langchain-classic>=1,<2",
+                "langchain-community>=0.4,<0.5",
+                "rank-bm25>=0.2,<0.3",
+            ],
+            "small_to_big": ["langchain-classic>=1,<2"],
+            "sentence_window": ["langchain-classic>=1,<2"],
         },
     },
     # ──────────────────────────────────────────────────────────────────────────
@@ -138,101 +141,87 @@ DEPENDENCY_MATRIX: dict[str, dict[str, dict[str, list[str]]]] = {
     "llamaindex": {
         "base": {
             "_": [
-                "llama-index>=0.11.0,<0.12.0",
-                "llama-index-core>=0.11.0,<0.12.0",
+                "llama-index-core>=0.14,<0.15",
                 "fastapi>=0.110.0",
-                "uvicorn>=0.28.0",
+                "uvicorn>=0.28.0,<1.0.0",
+                "python-dotenv>=1,<2",
             ]
         },
         "embedding": {
             "openai": [
-                "llama-index-embeddings-openai>=0.2.0,<0.3.0",
-                "openai>=1.40.0,<2.0.0",
+                "llama-index-embeddings-openai>=0.7,<0.8",
+                "openai>=1.40.0,<3.0.0",
             ],
             "cohere": [
-                "llama-index-embeddings-cohere>=0.2.0,<0.3.0",
-                "cohere>=5.0.0,<6.0.0",
+                "llama-index-embeddings-cohere>=0.5,<1",
             ],
             "voyage": [
-                "llama-index-embeddings-voyageai>=0.2.0,<0.3.0",
-                "voyageai>=0.3.0,<1.0.0",
+                "llama-index-embeddings-voyageai>=0.4,<1",
+                "voyageai>=0.3,<2",
             ],
             "gemini": [
-                "llama-index-embeddings-gemini>=0.2.0,<0.3.0",
-                "google-generativeai>=0.7.0,<1.0.0",
+                "llama-index-embeddings-google-genai>=0.5,<0.6",
             ],
             "bge_m3": [
-                "llama-index-embeddings-huggingface>=0.3.0,<0.4.0",
-                "FlagEmbedding>=1.2.0,<2.0.0",
-                "torch>=2.0.0",
+                "llama-index-embeddings-huggingface>=0.6,<1",
+                "sentence-transformers>=3,<6",
             ],
             "nomic": [
-                "llama-index-embeddings-nomic>=0.2.0,<0.3.0",
-                "nomic>=3.0.0,<4.0.0",
+                "llama-index-embeddings-nomic>=0.4,<1",
             ],
             "jina": [
-                "llama-index-embeddings-jinaai>=0.2.0,<0.3.0",
+                "llama-index-embeddings-jinaai>=0.4,<1",
             ],
         },
         "vectordb": {
             "chromadb": [
-                "llama-index-vector-stores-chroma>=0.2.0,<0.3.0",
-                "chromadb>=0.5.0,<1.0.0",
+                "llama-index-vector-stores-chroma>=0.5,<1",
             ],
             "qdrant": [
-                "llama-index-vector-stores-qdrant>=0.3.0,<0.4.0",
-                "qdrant-client>=1.7.0,<2.0.0",
+                "llama-index-vector-stores-qdrant>=0.10,<0.11",
             ],
             "pinecone": [
-                "llama-index-vector-stores-pinecone>=0.2.0,<0.3.0",
-                "pinecone-client>=3.0.0,<4.0.0",
+                "llama-index-vector-stores-pinecone>=0.5,<1",
             ],
             "weaviate": [
-                "llama-index-vector-stores-weaviate>=0.2.0,<0.3.0",
-                "weaviate-client>=4.0.0,<5.0.0",
+                "llama-index-vector-stores-weaviate>=1,<2",
             ],
             "milvus": [
-                "llama-index-vector-stores-milvus>=0.2.0,<0.3.0",
-                "pymilvus>=2.4.0,<3.0.0",
+                "llama-index-vector-stores-milvus>=0.5,<1",
             ],
             "pgvector": [
-                "llama-index-vector-stores-postgres>=0.2.0,<0.3.0",
-                "psycopg[binary]>=3.1.0,<4.0.0",
-                "pgvector>=0.2.0",
+                "llama-index-vector-stores-postgres>=0.5,<1",
             ],
         },
         "reranker": {
             "cohere": [
-                "llama-index-postprocessor-cohere-rerank>=0.2.0,<0.3.0",
-                "cohere>=5.0.0,<6.0.0",
+                "llama-index-postprocessor-cohere-rerank>=0.10,<0.11",
             ],
             "cross_encoder": [
-                "llama-index-postprocessor-sbert-rerank>=0.2.0,<0.3.0",
-                "sentence-transformers>=3.0.0,<4.0.0",
+                "llama-index-postprocessor-sbert-rerank>=0.5,<1",
+                "sentence-transformers>=3,<6",
                 "torch>=2.0.0",
             ],
             "colbert": [
                 "ragatouille>=0.0.8,<0.1.0",
             ],
             "flashrank": [
-                "llama-index-postprocessor-flashrank-reranker>=0.2.0,<0.3.0",
+                "llama-index-postprocessor-flashrank-reranker>=0.4,<1",
             ],
         },
         "llm": {
             "openai": [
-                "llama-index-llms-openai>=0.2.0,<0.3.0",
-                "openai>=1.40.0,<2.0.0",
+                "llama-index-llms-openai>=0.8,<0.9",
+                "openai>=1.40.0,<3.0.0",
             ],
             "anthropic": [
-                "llama-index-llms-anthropic>=0.4.0,<0.5.0",
-                "anthropic>=0.34.0,<1.0.0",
+                "llama-index-llms-anthropic>=0.12,<0.13",
             ],
             "cohere_llm": [
-                "llama-index-llms-cohere>=0.2.0,<0.3.0",
-                "cohere>=5.0.0,<6.0.0",
+                "llama-index-llms-cohere>=0.5,<1",
             ],
             "ollama": [
-                "llama-index-llms-ollama>=0.3.0,<0.4.0",
+                "llama-index-llms-ollama>=0.11,<0.12",
             ],
         },
     },
@@ -244,9 +233,7 @@ DEPENDENCY_MATRIX: dict[str, dict[str, dict[str, list[str]]]] = {
 CHUNKING_EXTRA_DEPS: dict[str, list[str]] = {
     "fixed": [],  # no extra deps — built into both frameworks
     "recursive": [],  # no extra deps — built into both frameworks
-    "semantic": [
-        "sentence-transformers>=3.0.0,<4.0.0",
-    ],
+    "semantic": [],  # LangChain-only dependency is selected below.
     "contextual": [
         "anthropic>=0.34.0,<1.0.0",  # default context model is claude-haiku
     ],
@@ -256,7 +243,7 @@ CHUNKING_EXTRA_DEPS: dict[str, list[str]] = {
     ],
     "page_level": [],  # PDF page splitting — handled by parser
     "proposition": [
-        "openai>=1.40.0,<2.0.0",  # default extraction model is gpt-4o-mini
+        "openai>=1.40.0,<3.0.0",  # default extraction model is gpt-4o-mini
     ],
 }
 
@@ -279,16 +266,19 @@ PARSER_EXTRA_DEPS: dict[str, list[str]] = {
 
 EVALUATION_EXTRA_DEPS: dict[str, list[str]] = {
     "ragas": [
-        "ragas>=0.1.21,<0.2.0",
-        "datasets>=2.14.0",
+        "ragas>=0.4,<0.5",
+        # Ragas 0.4.3 still imports ChatVertexAI from the removed community module.
+        "langchain-community>=0.4,<0.4.2",
+        "openai>=1.40.0,<3.0.0",
     ],
     "deepeval": [
-        "deepeval>=1.0.0,<2.0.0",
+        "deepeval>=4,<5",
     ],
     "both": [
-        "ragas>=0.1.21,<0.2.0",
-        "datasets>=2.14.0",
-        "deepeval>=1.0.0,<2.0.0",
+        "ragas>=0.4,<0.5",
+        "langchain-community>=0.4,<0.4.2",
+        "deepeval>=4,<5",
+        "openai>=1.40.0,<3.0.0",
     ],
 }
 
@@ -326,7 +316,7 @@ def get_dependencies(config: object) -> list[str]:  # noqa: ANN001
 
     # ── Agentic Flow packages ──────────────────────────────────────────────
     if config.flow_type == "agentic" and framework == "langchain":
-        deps.add("langgraph>=0.1.0,<0.2.0")
+        deps.add("langgraph>=1,<2")
 
     # ── Embedding ─────────────────────────────────────────────────────────
     emb_type = config.indexing.embedding.type
@@ -337,12 +327,23 @@ def get_dependencies(config: object) -> list[str]:  # noqa: ANN001
     vdb_type = config.indexing.vector_db.type
     if vdb_type in matrix["vectordb"]:
         deps.update(matrix["vectordb"][vdb_type])
+        if (
+            framework == "llamaindex"
+            and vdb_type == "qdrant"
+            and config.retrieval.type in {"hybrid_rrf", "hybrid_weighted"}
+        ):
+            deps.add("llama-index-vector-stores-qdrant[fastembed]>=0.10,<0.11")
 
     # ── Reranker (optional) ───────────────────────────────────────────────
     if config.post_retrieval.reranker is not None:
         reranker_type = config.post_retrieval.reranker.type
         if reranker_type in matrix["reranker"]:
             deps.update(matrix["reranker"][reranker_type])
+
+    # ── Retrieval extras (only adapters used by the selected retriever) ────
+    retrieval_type = config.retrieval.type
+    if retrieval_type in matrix.get("retrieval", {}):
+        deps.update(matrix["retrieval"][retrieval_type])
 
     # ── LLM ───────────────────────────────────────────────────────────────
     llm_type = config.generation.llm.type
@@ -352,6 +353,8 @@ def get_dependencies(config: object) -> list[str]:  # noqa: ANN001
     # ── Chunking extras ───────────────────────────────────────────────────
     chunking_type = config.indexing.chunking.type
     deps.update(CHUNKING_EXTRA_DEPS.get(chunking_type, []))
+    if chunking_type == "semantic" and framework == "langchain":
+        deps.add("langchain-experimental>=0.4,<0.5")
 
     # ── Parser extras ─────────────────────────────────────────────────────
     parser_value = config.ingestion.parser  # str value
@@ -361,5 +364,7 @@ def get_dependencies(config: object) -> list[str]:  # noqa: ANN001
     if config.evaluation is not None:
         eval_framework = config.evaluation.framework  # str value
         deps.update(EVALUATION_EXTRA_DEPS.get(eval_framework, []))
+        if eval_framework == "deepeval":
+            deps.add("openai>=1.40.0,<3.0.0")
 
     return sorted(deps)

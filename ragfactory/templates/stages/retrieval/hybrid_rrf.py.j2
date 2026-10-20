@@ -1,39 +1,51 @@
 # ── Retrieval: Hybrid RRF (BM25 + Dense, Reciprocal Rank Fusion) ──────────
 {% if framework == "langchain" %}
-from langchain.retrievers import EnsembleRetriever
+import json
+from pathlib import Path
+from langchain_classic.retrievers import EnsembleRetriever
 from langchain_community.retrievers import BM25Retriever
+from langchain_core.documents import Document
 {% elif framework == "llamaindex" %}
-from llama_index.core.retrievers import QueryFusionRetriever, VectorIndexRetriever
-from llama_index.core import VectorStoreIndex, StorageContext, Settings
+from llama_index.core import VectorStoreIndex, StorageContext
+from llama_index.core.vector_stores.types import VectorStoreQueryMode
 {% endif %}
 
 def build_retrieval(vectorstore: Any) -> Any:
 {% if framework == "langchain" %}
     dense_retriever = vectorstore.as_retriever(search_kwargs={"k": {{ retrieval.top_k }}})
-    # BM25 sparse retriever.
-    # IMPORTANT: Populate during ingestion by calling:
-    #   bm25_retriever = BM25Retriever.from_documents(docs, k={{ retrieval.top_k }})
-    # and serializing with pickle. Load that serialized index here.
-    # Until populated, the BM25 side returns no results; only dense results are returned.
-    bm25_retriever = BM25Retriever.from_texts([], k={{ retrieval.top_k }})
+    corpus_path = Path(__file__).with_name("chunks.json")
+    if not corpus_path.is_file():
+        raise FileNotFoundError(f"BM25 corpus not found: {corpus_path}; run ingestion.py first")
+    with corpus_path.open(encoding="utf-8") as corpus_file:
+        records = json.load(corpus_file)
+    if not isinstance(records, list) or not records:
+        raise ValueError(f"BM25 corpus is empty or malformed: {corpus_path}")
+    documents = [
+        Document(page_content=record["page_content"], metadata=record.get("metadata", {}))
+        for record in records
+    ]
+    sparse_retriever = BM25Retriever.from_documents(
+        documents,
+        k={{ retrieval.top_k }},
+        bm25_params={"k1": {{ retrieval.bm25_k1 }}, "b": {{ retrieval.bm25_b }}},
+    )
     return EnsembleRetriever(
-        retrievers=[bm25_retriever, dense_retriever],
+        retrievers=[sparse_retriever, dense_retriever],
         weights=[0.5, 0.5],
-        # RRF constant k={{ retrieval.rrf_k }}
+        c={{ retrieval.rrf_k }},
     )
 {% elif framework == "llamaindex" %}
-    # NOTE: True hybrid search (dense + sparse) requires a vector store with native
-    # sparse vector support (e.g., Qdrant with sparse vectors). QueryFusionRetriever
-    # here performs query expansion (num_queries=1) on a dense retriever.
-    # For native hybrid search, configure your vector store accordingly.
+{% if vector_db_type == "qdrant" %}
     storage_context = StorageContext.from_defaults(vector_store=vectorstore)
     index = VectorStoreIndex.from_vector_store(vectorstore, storage_context=storage_context)
-    dense_retriever = VectorIndexRetriever(index=index, similarity_top_k={{ retrieval.top_k }})
-    return QueryFusionRetriever(
-        [dense_retriever],
-        llm=Settings.llm,
-        num_queries=1,
-        mode="reciprocal_rerank",
+    return index.as_retriever(
+        vector_store_query_mode=VectorStoreQueryMode.HYBRID,
         similarity_top_k={{ retrieval.top_k }},
     )
+{% else %}
+    raise NotImplementedError(
+        "LlamaIndex hybrid retrieval is only configured for Qdrant; "
+        "select Qdrant or use dense retrieval"
+    )
+{% endif %}
 {% endif %}

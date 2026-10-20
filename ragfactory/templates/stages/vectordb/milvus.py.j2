@@ -10,13 +10,13 @@ def build_vectordb(embedder: Any) -> Any:
 {% if framework == "langchain" %}
     return Milvus(
         embedding_function=embedder,
-        collection_name="{{ vector_db.collection_name }}",
-        connection_args={"uri": os.environ.get("MILVUS_URI", "{{ vector_db.uri }}")},
+        collection_name={{ vector_db.collection_name | to_py_literal }},
+        connection_args={"uri": os.environ.get("MILVUS_URI", {{ vector_db.uri | to_py_literal }})},
     )
 {% elif framework == "llamaindex" %}
     return MilvusVectorStore(
-        uri=os.environ.get("MILVUS_URI", "{{ vector_db.uri }}"),
-        collection_name="{{ vector_db.collection_name }}",
+        uri=os.environ.get("MILVUS_URI", {{ vector_db.uri | to_py_literal }}),
+        collection_name={{ vector_db.collection_name | to_py_literal }},
         dim={{ embedding_dim }},
     )
 {% endif %}

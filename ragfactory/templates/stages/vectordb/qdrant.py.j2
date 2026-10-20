@@ -5,24 +5,61 @@ from qdrant_client import QdrantClient
 {% elif framework == "llamaindex" %}
 import os
 from llama_index.vector_stores.qdrant import QdrantVectorStore
-from qdrant_client import QdrantClient
+from qdrant_client import AsyncQdrantClient, QdrantClient
+{% endif %}
+
+{% if framework == "llamaindex" and config.retrieval.type == "hybrid_rrf" %}
+from llama_index.core.vector_stores import VectorStoreQueryResult
+
+
+def _rrf_fusion(dense_result: Any, sparse_result: Any, alpha: float, top_k: int) -> Any:
+    scores: dict[str, float] = {}
+    nodes_by_id: dict[str, Any] = {}
+    for result in (dense_result, sparse_result):
+        for rank, node in enumerate(result.nodes or [], start=1):
+            node_id = node.node_id
+            nodes_by_id[node_id] = node
+            scores[node_id] = scores.get(node_id, 0.0) + 1.0 / ({{ config.retrieval.rrf_k }} + rank)
+    ranked_ids = sorted(scores, key=scores.__getitem__, reverse=True)[:top_k]
+    return VectorStoreQueryResult(
+        nodes=[nodes_by_id[node_id] for node_id in ranked_ids],
+        similarities=[scores[node_id] for node_id in ranked_ids],
+        ids=ranked_ids,
+    )
 {% endif %}
 
 def build_vectordb(embedder: Any) -> Any:
 {% if framework == "langchain" %}
     client = QdrantClient(
-        url=os.environ.get("QDRANT_URL", "{{ vector_db.url }}"),
+        url=os.environ.get("QDRANT_URL", {{ vector_db.url | to_py_literal }}),
         api_key=os.environ.get("QDRANT_API_KEY"),
     )
     return QdrantVectorStore(
         client=client,
-        collection_name="{{ vector_db.collection_name }}",
+        collection_name={{ vector_db.collection_name | to_py_literal }},
         embedding=embedder,
     )
 {% elif framework == "llamaindex" %}
+    url = os.environ.get("QDRANT_URL", {{ vector_db.url | to_py_literal }})
+    api_key = os.environ.get("QDRANT_API_KEY")
     client = QdrantClient(
-        url=os.environ.get("QDRANT_URL", "{{ vector_db.url }}"),
-        api_key=os.environ.get("QDRANT_API_KEY"),
+        url=url,
+        api_key=api_key,
     )
-    return QdrantVectorStore(client=client, collection_name="{{ vector_db.collection_name }}")
+    aclient = AsyncQdrantClient(
+        url=url,
+        api_key=api_key,
+    )
+    return QdrantVectorStore(
+        client=client,
+        aclient=aclient,
+        collection_name={{ vector_db.collection_name | to_py_literal }},
+        enable_hybrid={{ 'True' if config.retrieval.type in ['hybrid_rrf', 'hybrid_weighted'] else 'False' }},
+{% if config.retrieval.type in ['hybrid_rrf', 'hybrid_weighted'] %}
+        fastembed_sparse_model="Qdrant/bm25",
+{% endif %}
+{% if config.retrieval.type == "hybrid_rrf" %}
+        hybrid_fusion_fn=_rrf_fusion,
+{% endif %}
+    )
 {% endif %}

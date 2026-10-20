@@ -44,6 +44,7 @@ from ragfactory.core._providers import (
     supports_contextual_provider_scaffolding,
 )
 from ragfactory.core.config import RAGPipelineConfig
+from ragfactory.core.validator import unsupported_generation_issues
 from ragfactory.core.versions import get_dependencies
 
 # Default template directory shipped with the package.
@@ -243,28 +244,35 @@ _EMBEDDING_DIMS_BY_PROVIDER: dict[str, dict[str, int]] = {
         "text-embedding-ada-002": 1536,
     },
     "cohere": {
-        "embed-v4.0": 1024,
+        "embed-v5.0-pro": 2048,
+        "embed-v5.0-fast": 2048,
+        "embed-v4.0": 1536,
         "embed-english-v3.0": 1024,
         "embed-multilingual-v3.0": 1024,
     },
     "voyage": {
-        # Local research docs list voyage-3-large and voyage-code-3 at 2048 dims.
-        "voyage-3-large": 2048,
+        "voyage-4-large": 1024,
+        "voyage-4": 1024,
+        "voyage-4-lite": 1024,
+        "voyage-code-4": 1024,
+        "voyage-3-large": 1024,
         "voyage-3": 1024,
         "voyage-3-lite": 512,
-        "voyage-code-3": 2048,
+        "voyage-code-3": 1024,
         "voyage-finance-2": 1024,
         "voyage-law-2": 1024,
     },
     "gemini": {
-        "text-embedding-004": 768,
-        "embedding-001": 3072,
+        "gemini-embedding-2": 3072,
+        "gemini-embedding-001": 3072,
     },
     "nomic": {
         "nomic-embed-text-v1.5": 768,
         "nomic-embed-text-v1": 768,
     },
     "jina": {
+        "jina-embeddings-v5-text-small": 1024,
+        "jina-embeddings-v5-text-nano": 768,
         "jina-embeddings-v3": 1024,
         "jina-embeddings-v2-base-en": 768,
     },
@@ -414,23 +422,8 @@ def _render_stages(
 
 
 def _unsupported_advanced_errors(config: RAGPipelineConfig) -> list[str]:
-    """Return generation-blocking errors for schema-only advanced features."""
-    adv = config.generation.advanced
-    if adv is None:
-        return []
-
-    errors: list[str] = []
-    checks = (
-        ("crag", adv.crag),
-        ("flare", adv.flare),
-    )
-    for name, feature in checks:
-        if feature is not None and feature.enabled:
-            errors.append(
-                "Unsupported advanced generation feature: "
-                f"generation.advanced.{name}. Disable it before generating."
-            )
-    return errors
+    """Keep generation, including CLI --force, from emitting incomplete runtime code."""
+    return [issue.message for issue in unsupported_generation_issues(config)]
 
 
 def generate(

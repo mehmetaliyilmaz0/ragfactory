@@ -8,14 +8,14 @@ from llama_index.vector_stores.chroma import ChromaVectorStore
 
 def build_vectordb(embedder: Any) -> Any:
 {% if framework == "langchain" %}
-    chroma_client = chromadb.PersistentClient(path="{{ vector_db.persist_directory }}")
+    chroma_client = chromadb.PersistentClient(path={{ vector_db.persist_directory | to_py_literal }})
     return Chroma(
         client=chroma_client,
-        collection_name="{{ vector_db.collection_name }}",
+        collection_name={{ vector_db.collection_name | to_py_literal }},
         embedding_function=embedder,
     )
 {% elif framework == "llamaindex" %}
-    chroma_client = chromadb.PersistentClient(path="{{ vector_db.persist_directory }}")
-    chroma_collection = chroma_client.get_or_create_collection("{{ vector_db.collection_name }}")
+    chroma_client = chromadb.PersistentClient(path={{ vector_db.persist_directory | to_py_literal }})
+    chroma_collection = chroma_client.get_or_create_collection({{ vector_db.collection_name | to_py_literal }})
     return ChromaVectorStore(chroma_collection=chroma_collection)
 {% endif %}

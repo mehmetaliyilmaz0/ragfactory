@@ -1,7 +1,6 @@
 # ── Chunking: SemanticChunker / SemanticSplitterNodeParser ───────────────────
 {% if framework == "langchain" %}
 from langchain_experimental.text_splitter import SemanticChunker
-from langchain_openai import OpenAIEmbeddings
 {% elif framework == "llamaindex" %}
 from llama_index.core import Settings
 from llama_index.core.node_parser import SemanticSplitterNodeParser
@@ -11,9 +10,11 @@ from llama_index.core.node_parser import SemanticSplitterNodeParser
 def build_chunking() -> Any:
 {% if framework == "langchain" %}
     return SemanticChunker(
-        embeddings=OpenAIEmbeddings(),
-        breakpoint_threshold_type={{ chunking.breakpoint_threshold_type.value | tojson_py }},
+        embeddings=build_embedding(),
+        breakpoint_threshold_type={{ chunking.breakpoint_threshold_type | string | to_py_literal }},
         breakpoint_threshold_amount={{ chunking.breakpoint_threshold_amount }},
+        buffer_size={{ chunking.buffer_size }},
+        min_chunk_size={{ chunking.min_chunk_size }},
     )
 {% elif framework == "llamaindex" %}
     return SemanticSplitterNodeParser(

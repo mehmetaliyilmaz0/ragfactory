@@ -7,9 +7,15 @@ Usage:
 """
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 from typing import Any
+from dotenv import load_dotenv
+
+from langchain_core.documents import Document
+
+load_dotenv()
 
 # ─── Stage: Chunking ──────────────────────────────────────────────────────────
 {{ stages.chunking }}
@@ -30,21 +36,45 @@ def ingest(source_path: str) -> None:
     Args:
         source_path: Path to a file or directory to ingest.
     """
-    from langchain_community.document_loaders import DirectoryLoader, TextLoader
-
     path = Path(source_path)
     if path.is_dir():
-        loader = DirectoryLoader(str(path), glob="{{ ingestion.sources[0].glob if ingestion.sources else '**/*' }}")
+        glob = {{ (ingestion.sources[0].glob if ingestion.sources else '**/*.txt') | tojson_py }}
+        files = sorted(file for file in path.glob(glob) if file.is_file())
     else:
-        loader = TextLoader(str(path))
-
-    raw_docs = loader.load()
+        files = [path]
+    raw_docs = []
+    for file in files:
+        if file.suffix.lower() not in {
+            ".txt", ".md", ".markdown", ".rst", ".csv", ".json", ".jsonl",
+            ".yaml", ".yml", ".html", ".htm", ".xml", ".log",
+        }:
+            raise ValueError(
+                f"Unsupported document format: {file}. This ingestion script loads UTF-8 "
+                "text files only; narrow the glob or add a parser before ingesting."
+            )
+        try:
+            content = file.read_text(encoding="utf-8")
+        except UnicodeError as exc:
+            raise ValueError(f"Document is not valid UTF-8 text: {file}") from exc
+        raw_docs.append(Document(page_content=content, metadata={"source": str(file)}))
+    if not raw_docs:
+        raise ValueError(f"No documents matched the source: {source_path}")
     splitter  = build_chunking()
     chunks    = splitter.split_documents(raw_docs)
 
     embedder    = build_embedding()
     vectorstore = build_vectordb(embedder)
     vectorstore.add_documents(chunks)
+
+    sidecar = Path(__file__).with_name("chunks.json")
+    corpus = json.loads(sidecar.read_text(encoding="utf-8")) if sidecar.exists() else []
+    if not isinstance(corpus, list):
+        raise ValueError(f"{sidecar} must contain a JSON array")
+    corpus.extend(
+        {"page_content": chunk.page_content, "metadata": chunk.metadata}
+        for chunk in chunks
+    )
+    sidecar.write_text(json.dumps(corpus, ensure_ascii=False, default=str), encoding="utf-8")
     print(f"Ingested {len(chunks)} chunks from {source_path!r}")
 
 

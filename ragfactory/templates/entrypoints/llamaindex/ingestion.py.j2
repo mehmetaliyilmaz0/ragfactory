@@ -10,8 +10,11 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 from typing import Any
+from dotenv import load_dotenv
 
 from llama_index.core import Settings, SimpleDirectoryReader, VectorStoreIndex
+
+load_dotenv()
 
 # ─── Stage: Chunking ──────────────────────────────────────────────────────────
 {{ stages.chunking }}

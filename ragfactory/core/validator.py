@@ -487,6 +487,42 @@ def _estimate_costs(
 # ─── Public API ───────────────────────────────────────────────────────────────
 
 
+def unsupported_generation_issues(config: RAGPipelineConfig) -> list[ValidationIssue]:
+    """Features parsed by the schema whose runtime implementation is still missing."""
+    issues: list[ValidationIssue] = []
+    _check_unsupported_advanced_generation(config, issues)
+    if (
+        config.framework == "llamaindex"
+        and config.retrieval.type in {"hybrid_rrf", "hybrid_weighted"}
+        and config.indexing.vector_db.type != "qdrant"
+    ):
+        issues.append(
+            ValidationIssue(
+                severity=ValidationSeverity.ERROR,
+                code="UNSUPPORTED_HYBRID_STORE",
+                message="LlamaIndex hybrid retrieval is implemented only for Qdrant. "
+                "Use retrieval.type='dense' for this vector store.",
+                component_path="retrieval",
+                suggestion="Use Qdrant for native hybrid retrieval or select dense retrieval.",
+            )
+        )
+    if config.indexing.chunking.type in {"contextual", "proposition", "late"}:
+        issues.append(
+            ValidationIssue(
+                severity=ValidationSeverity.ERROR,
+                code="UNSUPPORTED_CHUNKING",
+                message=(
+                    f"indexing.chunking.type='{config.indexing.chunking.type}' is schema-only: "
+                    "its generated ingestion implementation is incomplete. "
+                    "Use recursive, fixed, semantic, or page_level chunking."
+                ),
+                component_path="indexing.chunking",
+                suggestion="Set indexing.chunking.type='recursive'.",
+            )
+        )
+    return issues
+
+
 def validate(
     config: RAGPipelineConfig,
     corpus_tokens: int | None = None,
@@ -522,7 +558,7 @@ def validate(
     _check_incompatible_pairs(config, issues)
     _check_late_chunking(config, issues)
     _check_contextual_chunking(config, issues)
-    _check_unsupported_advanced_generation(config, issues)
+    issues.extend(unsupported_generation_issues(config))
     _check_reranker_top_n(config, issues)
     _check_warnings(config, issues)
     _estimate_costs(config, corpus_tokens, costs)

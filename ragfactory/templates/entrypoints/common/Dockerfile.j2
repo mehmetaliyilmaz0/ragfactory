@@ -2,12 +2,10 @@ FROM python:{{ python_version }}-slim
 
 WORKDIR /app
 
-# Install dependencies first (layer caching)
-COPY pyproject.toml ./
-RUN pip install --no-cache-dir .
-
-# Copy pipeline code
+# Copy build metadata and generated modules before installing the project.
+COPY pyproject.toml README.md ./
 COPY *.py ./
+RUN pip install --no-cache-dir .
 
 EXPOSE 8000
 

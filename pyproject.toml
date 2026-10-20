@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ragfactory"
-version = "0.1.2"
+version = "0.2.0"
 description = "Generate production-ready RAG pipelines from a single config"
 readme = "README.md"
 license = { text = "Apache-2.0" }
@@ -18,6 +18,8 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 
@@ -36,10 +38,11 @@ dev = [
     "ruff>=0.4.0",
     "mypy>=1.10.0",
     "types-PyYAML>=6.0.12",
+    "httpx>=0.28.0,<1.0.0",
 ]
 api = [
-    "fastapi>=0.110.0,<0.137.0",
-    "uvicorn>=0.28.0,<1.0.0",
+    "fastapi>=0.115.0,<1.0.0",
+    "uvicorn>=0.30.0,<1.0.0",
 ]
 
 [project.scripts]
@@ -60,6 +63,9 @@ include = [
     "ragfactory/templates/**",
     "ragfactory/templates/entrypoints/common/.env.example.j2",
 ]
+
+[tool.hatch.build.targets.sdist]
+include = ["ragfactory", "tests", "README.md", "pyproject.toml"]
 
 # ─── Ruff ─────────────────────────────────────────────────────────────────────
 

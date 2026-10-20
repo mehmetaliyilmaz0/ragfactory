@@ -11,15 +11,19 @@ from typing import Any
 def build_llm() -> Any:
 {% if framework == "langchain" %}
     return ChatOpenAI(
-        model="{{ llm.model }}",
+        model={{ llm.model | tojson_py }},
+{% if llm.temperature is not none %}
         temperature={{ llm.temperature }},
+{% endif %}
         max_tokens={{ llm.max_tokens }},
         api_key=os.environ["OPENAI_API_KEY"],
     )
 {% else %}
     return OpenAI(
-        model="{{ llm.model }}",
+        model={{ llm.model | tojson_py }},
+{% if llm.temperature is not none %}
         temperature={{ llm.temperature }},
+{% endif %}
         max_tokens={{ llm.max_tokens }},
         api_key=os.environ["OPENAI_API_KEY"],
     )

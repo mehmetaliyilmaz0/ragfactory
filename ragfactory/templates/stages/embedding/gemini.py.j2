@@ -1,13 +1,13 @@
-# Google Gemini Embeddings — text-embedding-004 / embedding-001
+# Google Gemini Embeddings — gemini-embedding-2
 {% if framework == "langchain" %}
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 {% elif framework == "llamaindex" %}
-from llama_index.embeddings.gemini import GeminiEmbedding
+from llama_index.embeddings.google_genai import GoogleGenAIEmbedding
 {% endif %}
 
 def build_embedding() -> Any:
 {% if framework == "langchain" %}
     return GoogleGenerativeAIEmbeddings(model={{ embedding.model | tojson_py }})
 {% elif framework == "llamaindex" %}
-    return GeminiEmbedding(model_name={{ embedding.model | tojson_py }})
+    return GoogleGenAIEmbedding(model_name={{ embedding.model | tojson_py }})
 {% endif %}

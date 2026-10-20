@@ -1,7 +1,7 @@
-# Voyage AI Embeddings — voyage-3-large / voyage-3 / voyage-3-lite / voyage-code-3
+# Voyage AI Embeddings — Voyage 4
 import os
 {% if framework == "langchain" %}
-from langchain_community.embeddings import VoyageAIEmbeddings
+from langchain_voyageai import VoyageAIEmbeddings
 {% elif framework == "llamaindex" %}
 from llama_index.embeddings.voyageai import VoyageEmbedding
 {% endif %}

@@ -11,15 +11,19 @@ from typing import Any
 def build_llm() -> Any:
 {% if framework == "langchain" %}
     return ChatAnthropic(
-        model="{{ llm.model }}",
+        model={{ llm.model | tojson_py }},
+{% if llm.temperature is not none %}
         temperature={{ llm.temperature }},
+{% endif %}
         max_tokens={{ llm.max_tokens }},
         api_key=os.environ["ANTHROPIC_API_KEY"],
     )
 {% else %}
     return Anthropic(
-        model="{{ llm.model }}",
+        model={{ llm.model | tojson_py }},
+{% if llm.temperature is not none %}
         temperature={{ llm.temperature }},
+{% endif %}
         max_tokens={{ llm.max_tokens }},
         api_key=os.environ["ANTHROPIC_API_KEY"],
     )

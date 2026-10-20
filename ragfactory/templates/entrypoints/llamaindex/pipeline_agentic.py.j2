@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import os
 from typing import Any, List
+from dotenv import load_dotenv
 from llama_index.core import Settings
 from llama_index.core.workflow import (
     Workflow,
@@ -17,6 +18,7 @@ from llama_index.core.workflow import (
 
 # ─── Prompt template ──────────────────────────────────────────────────────────
 _PROMPT_TEMPLATE = {{ generation.prompt_template | to_py_literal }}
+load_dotenv()
 
 # ─── Stage: Chunking ──────────────────────────────────────────────────────────
 {{ stages.chunking }}
@@ -52,7 +54,10 @@ class RAGWorkflow(Workflow):
         vectorstore = build_vectordb(embed_model)
         retriever = build_retrieval(vectorstore)
         
-        nodes = retriever.retrieve(ev.query)
+        nodes = await retriever.aretrieve(ev.query)
+{% if stages.reranker is defined and stages.reranker %}
+        nodes = await build_reranker().apostprocess_nodes(nodes, query_str=ev.query)
+{% endif %}
         contexts = [node.node.get_content() for node in nodes]
         
         return RetrievalEvent(query=ev.query, contexts=contexts)
@@ -89,17 +94,7 @@ async def run_pipeline_async(query: str, return_contexts: bool = False) -> str |
 
 
 def run_pipeline(query: str, return_contexts: bool = False) -> str | tuple[str, list[str]]:
-    """Synchronously run the LlamaIndex Workflow RAG pipeline."""
+    """Synchronously run; call run_pipeline_async from an existing event loop."""
     import asyncio
-    try:
-        loop = asyncio.get_event_loop()
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        
-    result = loop.run_until_complete(run_pipeline_async(query, return_contexts=True))
-    answer, contexts = result
-    
-    if return_contexts:
-        return answer, contexts
-    return answer
+
+    return asyncio.run(run_pipeline_async(query, return_contexts))

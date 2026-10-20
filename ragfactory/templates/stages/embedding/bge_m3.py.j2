@@ -1,6 +1,6 @@
 # BGE-M3 (BAAI, 2024) — dense + sparse + multi-vector, self-hosted
 {% if framework == "langchain" %}
-from FlagEmbedding import BGEM3FlagModel
+from langchain_huggingface import HuggingFaceEmbeddings
 {% elif framework == "llamaindex" %}
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 {% endif %}
@@ -8,11 +8,9 @@ from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 
 def build_embedding() -> Any:
 {% if framework == "langchain" %}
-    # LangChain: use FlagEmbedding directly.
-    return BGEM3FlagModel(
-        model_name_or_path="BAAI/bge-m3",
-        use_fp16={{ embedding.use_fp16 }},
-        batch_size={{ embedding.batch_size }},
+    return HuggingFaceEmbeddings(
+        model_name="BAAI/bge-m3",
+        encode_kwargs={"batch_size": {{ embedding.batch_size }}, "normalize_embeddings": True},
     )
 {% elif framework == "llamaindex" %}
     return HuggingFaceEmbedding(

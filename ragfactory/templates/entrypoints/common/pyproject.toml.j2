@@ -19,7 +19,7 @@ dependencies = [
 {{ pipeline_name | replace("-", "_") }} = "pipeline:run_pipeline"
 
 [tool.hatch.build.targets.wheel]
-packages = ["."]
+only-include = ["pipeline.py", "ingestion.py", "api.py", "eval.py"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

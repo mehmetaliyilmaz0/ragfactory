@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import os
 from typing import Any, TypedDict, Annotated, List, Sequence
+from dotenv import load_dotenv
 from langchain_core.messages import BaseMessage, HumanMessage
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough
@@ -13,6 +14,7 @@ from langgraph.graph import StateGraph, END
 
 # ─── Prompt template ──────────────────────────────────────────────────────────
 _PROMPT_TEMPLATE = {{ generation.prompt_template | to_py_literal }}
+load_dotenv()
 
 # ─── Stage: Chunking ──────────────────────────────────────────────────────────
 {{ stages.chunking }}
@@ -47,6 +49,9 @@ def retrieve_node(state: AgentState) -> dict[str, Any]:
     embedder = build_embedding()
     vectorstore = build_vectordb(embedder)
     retriever = build_retrieval(vectorstore)
+{% if stages.reranker is defined and stages.reranker %}
+    retriever = build_reranker(retriever)
+{% endif %}
     docs = retriever.invoke(state["query"])
     return {"documents": docs}
 
@@ -61,7 +66,17 @@ def generate_node(state: AgentState) -> dict[str, Any]:
     
     chain = prompt | llm
     response = chain.invoke({"context": context_str, "question": state["query"]})
-    answer = response.content if hasattr(response, "content") else str(response)
+    content = response.content if hasattr(response, "content") else response
+    if isinstance(content, str):
+        answer = content
+    elif isinstance(content, list):
+        answer = "".join(
+            block.get("text", "")
+            for block in content
+            if isinstance(block, dict) and block.get("type") == "text"
+        )
+    else:
+        answer = str(content)
     
     return {"generation": answer, "contexts": contexts}
 

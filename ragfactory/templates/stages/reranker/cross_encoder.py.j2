@@ -1,12 +1,12 @@
 {% if framework == "langchain" %}
-from langchain.retrievers.document_compressors import CrossEncoderReranker
-from langchain.retrievers import ContextualCompressionRetriever
-from sentence_transformers import CrossEncoder
+from langchain_classic.retrievers import ContextualCompressionRetriever
+from langchain_classic.retrievers.document_compressors import CrossEncoderReranker
+from langchain_community.cross_encoders import HuggingFaceCrossEncoder
 from typing import Any
 
 
 def build_reranker(retriever: Any) -> Any:
-    cross_encoder = CrossEncoder("{{ reranker.model }}")
+    cross_encoder = HuggingFaceCrossEncoder(model_name={{ reranker.model | to_py_literal }})
     compressor = CrossEncoderReranker(model=cross_encoder, top_n={{ reranker.top_n }})
     return ContextualCompressionRetriever(
         base_compressor=compressor,
@@ -19,7 +19,7 @@ from typing import Any
 
 def build_reranker() -> Any:
     return SentenceTransformerRerank(
-        model="{{ reranker.model }}",
+        model={{ reranker.model | to_py_literal }},
         top_n={{ reranker.top_n }},
     )
 {% endif %}

@@ -18,6 +18,8 @@ from typing import Annotated, Literal
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+ModelId = Annotated[str, Field(min_length=1, max_length=128, pattern=r"\S(?:.*\S)?")]
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Base
 # ─────────────────────────────────────────────────────────────────────────────
@@ -163,7 +165,7 @@ class ContextualChunkingConfig(StrictModel):
     chunk_size: int = Field(800, ge=64, le=8192)
     chunk_overlap: int = Field(80, ge=0)
     context_model: str = Field(
-        "claude-3-haiku-20240307",
+        "claude-haiku-5-5",
         description="LLM for context generation. Haiku recommended for cost efficiency.",
     )
     context_prompt: str = Field(
@@ -236,7 +238,7 @@ class PropositionChunkingConfig(StrictModel):
 
     type: Literal["proposition"] = "proposition"
     extraction_model: str = Field(
-        "gpt-4o-mini",
+        "gpt-6-luna",
         description="LLM for proposition extraction. gpt-4o for max quality, mini for cost.",
     )
 
@@ -260,11 +262,7 @@ ChunkingConfig = Annotated[
 
 class OpenAIEmbeddingConfig(StrictModel):
     type: Literal["openai"] = "openai"
-    model: Literal[
-        "text-embedding-3-large",
-        "text-embedding-3-small",
-        "text-embedding-ada-002",
-    ] = "text-embedding-3-small"
+    model: ModelId = "text-embedding-3-small"
     dimensions: int | None = Field(
         None,
         description=(
@@ -277,31 +275,28 @@ class OpenAIEmbeddingConfig(StrictModel):
 
 class CohereEmbeddingConfig(StrictModel):
     type: Literal["cohere"] = "cohere"
-    model: Literal[
-        "embed-v4.0",
-        "embed-english-v3.0",
-        "embed-multilingual-v3.0",
-    ] = "embed-v4.0"
+    model: ModelId = "embed-v5.0-fast"
     input_type: Literal["search_document", "search_query"] = "search_document"
     # API key from env: COHERE_API_KEY
 
 
 class VoyageEmbeddingConfig(StrictModel):
     type: Literal["voyage"] = "voyage"
-    model: Literal[
-        "voyage-3-large",
-        "voyage-3",
-        "voyage-3-lite",
-        "voyage-code-3",
-        "voyage-finance-2",
-        "voyage-law-2",
-    ] = "voyage-3-large"
+    model: ModelId = "voyage-4-lite"
     # API key from env: VOYAGE_API_KEY
 
 
 class GeminiEmbeddingConfig(StrictModel):
     type: Literal["gemini"] = "gemini"
-    model: Literal["text-embedding-004", "embedding-001"] = "text-embedding-004"
+    model: ModelId = "gemini-embedding-2"
+
+    @field_validator("model")
+    @classmethod
+    def _reject_retired_models(cls, model: str) -> str:
+        if model in {"text-embedding-004", "embedding-001"}:
+            raise ValueError("Google model is retired; use gemini-embedding-2")
+        return model
+
     # API key from env: GOOGLE_API_KEY
 
 
@@ -350,10 +345,7 @@ class JinaEmbeddingConfig(StrictModel):
     """
 
     type: Literal["jina"] = "jina"
-    model: Literal[
-        "jina-embeddings-v3",
-        "jina-embeddings-v2-base-en",
-    ] = "jina-embeddings-v3"
+    model: ModelId = "jina-embeddings-v5-text-small"
     late_chunking: bool = Field(
         False,
         description=(
@@ -656,10 +648,12 @@ class CohereRerankerConfig(StrictModel):
 
     type: Literal["cohere"] = "cohere"
     model: Literal[
+        "rerank-v4.0-pro",
+        "rerank-v4.0-fast",
         "rerank-v3.5",
         "rerank-english-v3.0",
         "rerank-multilingual-v3.0",
-    ] = "rerank-v3.5"
+    ] = "rerank-v4.0-fast"
     top_n: int = Field(5, ge=1, le=50, description="Final documents after reranking")
     # API key from env: COHERE_API_KEY
 
@@ -756,27 +750,23 @@ class PostRetrievalConfig(StrictModel):
 
 class OpenAILLMConfig(StrictModel):
     type: Literal["openai"] = "openai"
-    model: Literal["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"] = "gpt-4o-mini"
-    temperature: float = Field(0.05, ge=0.0, le=2.0)
+    model: ModelId = "gpt-5.4-mini"
+    temperature: float | None = Field(None, ge=0.0, le=2.0)
     max_tokens: int = Field(2048, ge=128, le=16384)
     # API key from env: OPENAI_API_KEY
 
 
 class AnthropicLLMConfig(StrictModel):
     type: Literal["anthropic"] = "anthropic"
-    model: Literal[
-        "claude-opus-4-6",
-        "claude-sonnet-4-6",
-        "claude-haiku-4-5",
-    ] = "claude-sonnet-4-6"
-    temperature: float = Field(0.05, ge=0.0, le=1.0)
+    model: ModelId = "claude-sonnet-4-6"
+    temperature: float | None = Field(None, ge=0.0, le=1.0)
     max_tokens: int = Field(2048, ge=128, le=8192)
     # API key from env: ANTHROPIC_API_KEY
 
 
 class CohereLLMConfig(StrictModel):
     type: Literal["cohere_llm"] = "cohere_llm"
-    model: Literal["command-r-plus", "command-r", "command"] = "command-r"
+    model: ModelId = "command-r"
     temperature: float = Field(0.05, ge=0.0, le=1.0)
     max_tokens: int = Field(2048, ge=128, le=4096)
     # API key from env: COHERE_API_KEY
@@ -923,17 +913,16 @@ class EvalFramework(StrEnum):
     BOTH = "both"
 
 
+EvalMetric = Literal["faithfulness", "answer_relevancy", "context_precision"]
+
+
 class EvaluationConfig(StrictModel):
     framework: EvalFramework = EvalFramework.RAGAS
-    metrics: list[str] = Field(
-        default_factory=lambda: [
-            "faithfulness",
-            "answer_relevancy",
-            "context_precision",
-        ],
+    metrics: list[EvalMetric] = Field(
+        default=["faithfulness", "answer_relevancy", "context_precision"],
         min_length=1,
     )
-    judge_model: str = Field("gpt-4o", description="LLM for evaluation judge calls")
+    judge_model: ModelId = Field("gpt-6-luna", description="LLM for evaluation judge calls")
     num_test_cases: int = Field(50, ge=5, le=1000)
     pass_threshold: float = Field(
         0.7,

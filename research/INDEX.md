@@ -1,5 +1,10 @@
 # RAG Research Library - Index
 
+> Historical research snapshot from April 2026. See the October 2026
+> [model refresh](MODEL_REFRESH_2026-10-20.md),
+> [SDK refresh](SDK_REFRESH_2026-10-20.md), and
+> [runtime findings](RUNTIME_REFRESH_2026-10-20.md) for maintenance updates.
+
 > **Total Research**: ~8,900+ lines across 8 documents
 > **Research Date**: April 4-5, 2026
 > **Purpose**: Foundation knowledge base for building an automated RAG pipeline builder platform

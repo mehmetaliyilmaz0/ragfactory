@@ -798,6 +798,17 @@ class TestEmbeddingStages:
         assert rendered.strip()
         assert "def build_embedding()" in rendered
 
+    def test_llamaindex_gemini_uses_google_genai_integration(self) -> None:
+        config = _make_config(
+            framework="llamaindex",
+            indexing=IndexingConfig(embedding=GeminiEmbeddingConfig(), vector_db=QdrantConfig()),
+        )
+        rendered = _loader().render_stage("embedding", "gemini", _embedding_ctx(config))
+
+        assert "from llama_index.embeddings.google_genai import GoogleGenAIEmbedding" in rendered
+        assert "GoogleGenAIEmbedding(model_name='gemini-embedding-2')" in rendered
+        assert "llama_index.embeddings.gemini" not in rendered
+
     # ── bge_m3 ────────────────────────────────────────────────────────────────
 
     @pytest.mark.parametrize("framework", ["langchain", "llamaindex"])
@@ -900,12 +911,12 @@ class TestEmbeddingDimensionLookup:
     @pytest.mark.parametrize(
         ("embedding", "expected_dim"),
         [
-            (GeminiEmbeddingConfig(model="text-embedding-004"), 768),
-            (GeminiEmbeddingConfig(model="embedding-001"), 3072),
-            (VoyageEmbeddingConfig(model="voyage-3-large"), 2048),
+            (GeminiEmbeddingConfig(model="gemini-embedding-001"), 3072),
+            (GeminiEmbeddingConfig(model="gemini-embedding-2"), 3072),
+            (VoyageEmbeddingConfig(model="voyage-3-large"), 1024),
             (VoyageEmbeddingConfig(model="voyage-3"), 1024),
             (VoyageEmbeddingConfig(model="voyage-3-lite"), 512),
-            (VoyageEmbeddingConfig(model="voyage-code-3"), 2048),
+            (VoyageEmbeddingConfig(model="voyage-code-3"), 1024),
             (VoyageEmbeddingConfig(model="voyage-finance-2"), 1024),
             (VoyageEmbeddingConfig(model="voyage-law-2"), 1024),
         ],
@@ -940,12 +951,12 @@ class TestEmbeddingDimensions:
     @pytest.mark.parametrize(
         ("embedding", "expected_dim"),
         [
-            (GeminiEmbeddingConfig(model="text-embedding-004"), 768),
-            (GeminiEmbeddingConfig(model="embedding-001"), 3072),
-            (VoyageEmbeddingConfig(model="voyage-3-large"), 2048),
+            (GeminiEmbeddingConfig(model="gemini-embedding-001"), 3072),
+            (GeminiEmbeddingConfig(model="gemini-embedding-2"), 3072),
+            (VoyageEmbeddingConfig(model="voyage-3-large"), 1024),
             (VoyageEmbeddingConfig(model="voyage-3"), 1024),
             (VoyageEmbeddingConfig(model="voyage-3-lite"), 512),
-            (VoyageEmbeddingConfig(model="voyage-code-3"), 2048),
+            (VoyageEmbeddingConfig(model="voyage-code-3"), 1024),
         ],
     )
     def test_embedding_dim_lookup_matches_schema_literals(
@@ -1046,12 +1057,12 @@ class TestVectorDBStages:
         config = _make_config(
             framework="llamaindex",
             indexing=IndexingConfig(
-                embedding=GeminiEmbeddingConfig(model="text-embedding-004"),
+                embedding=GeminiEmbeddingConfig(model="gemini-embedding-2"),
                 vector_db=MilvusConfig(),
             ),
         )
         rendered = _loader().render_stage("vectordb", "milvus", _vectordb_ctx(config))
-        assert "dim=768" in rendered
+        assert "dim=3072" in rendered
 
     def test_llamaindex_pgvector_uses_voyage_embedding_dim(self) -> None:
         config = _make_config(
@@ -1062,7 +1073,7 @@ class TestVectorDBStages:
             ),
         )
         rendered = _loader().render_stage("vectordb", "pgvector", _vectordb_ctx(config))
-        assert "embed_dim=2048" in rendered
+        assert "embed_dim=1024" in rendered
 
     def test_vectordb_build_fn_takes_embedder(self) -> None:
         """All vectordb templates must have 'def build_vectordb(embedder' signature."""
@@ -1490,13 +1501,13 @@ class TestEndToEnd:
         )
         self._assert_valid(result)
 
-    def test_llamaindex_jina_late_chromadb_dense_no_reranker_ollama(self) -> None:
+    def test_llamaindex_jina_chromadb_dense_no_reranker_ollama(self) -> None:
         result = _e2e_result(
             "llamaindex",
             indexing=IndexingConfig(
                 embedding=JinaEmbeddingConfig(late_chunking=True),
                 vector_db=ChromaDBConfig(),
-                chunking=LateChunkingConfig(),
+                chunking=RecursiveChunkingConfig(),
             ),
             retrieval=DenseRetrievalConfig(),
             generation=GenerationConfig(llm=OllamaLLMConfig()),
@@ -1555,10 +1566,8 @@ class TestEnvVarGeneration:
             ),
             generation=GenerationConfig(llm=AnthropicLLMConfig()),
         )
-        result = generate(config)
-        env = result.files[".env.example"]
-        # The key should appear at most once as a variable name
-        assert env.count("ANTHROPIC_API_KEY=") == 1
+        variables = [name for name, _ in _collect_required_env_vars(config)]
+        assert variables.count("ANTHROPIC_API_KEY") == 1
 
     def test_ollama_has_no_api_key_vars(self) -> None:
         """Ollama LLM + ChromaDB + BGE-M3 → no API key vars (all local)."""
@@ -1602,10 +1611,9 @@ class TestEnvVarGeneration:
             ),
             generation=GenerationConfig(llm=OpenAILLMConfig()),
         )
-        result = generate(config)
-        env = result.files[".env.example"]
-        assert "OPENAI_API_KEY" in env
-        assert "MISTRAL_API_KEY" not in env
+        variables = [name for name, _ in _collect_required_env_vars(config)]
+        assert "OPENAI_API_KEY" in variables
+        assert "MISTRAL_API_KEY" not in variables
 
 
 class TestDependencyAccuracy:
@@ -1636,18 +1644,22 @@ class TestDependencyAccuracy:
         )
         assert "llama-index-embeddings-cohere" in self._pyproject(config)
 
-    def test_bge_m3_has_flagembedding_dep(self) -> None:
-        """BGE-M3 embedding (any framework) → FlagEmbedding in pyproject.toml."""
+    def test_bge_m3_has_framework_adapter_dependency(self) -> None:
+        """BGE-M3 uses the framework's HuggingFace embedding adapter."""
         config = RAGPipelineConfig(
             name="t",
             framework="langchain",
             indexing=IndexingConfig(embedding=BGEM3EmbeddingConfig(), vector_db=QdrantConfig()),
             generation=GenerationConfig(llm=OpenAILLMConfig()),
         )
-        assert "FlagEmbedding" in self._pyproject(config)
+        assert "langchain-huggingface" in self._pyproject(config)
+        assert "FlagEmbedding" not in self._pyproject(config)
+        config.framework = "llamaindex"
+        assert "llama-index-embeddings-huggingface" in self._pyproject(config)
+        assert "FlagEmbedding" not in self._pyproject(config)
 
-    def test_semantic_chunking_has_sentence_transformers_dep(self) -> None:
-        """Semantic chunking → sentence-transformers in pyproject.toml."""
+    def test_semantic_chunking_has_framework_specific_dependency(self) -> None:
+        """LangChain semantic chunking needs its experimental integration package."""
         config = RAGPipelineConfig(
             name="t",
             framework="langchain",
@@ -1658,7 +1670,9 @@ class TestDependencyAccuracy:
             ),
             generation=GenerationConfig(llm=OpenAILLMConfig()),
         )
-        assert "sentence-transformers" in self._pyproject(config)
+        assert "langchain-experimental" in self._pyproject(config)
+        config.framework = "llamaindex"
+        assert "langchain-experimental" not in self._pyproject(config)
 
     def test_crag_duckduckgo_does_not_advertise_duckduckgo_dep(self) -> None:
         """Unsupported CRAG must not advertise duckduckgo runtime dependencies."""
@@ -1816,6 +1830,7 @@ class TestASTValidation:
             name="ast-ingest-li",
             framework="llamaindex",
             indexing=IndexingConfig(embedding=NomicEmbeddingConfig(), vector_db=MilvusConfig()),
+            retrieval=DenseRetrievalConfig(),
             generation=GenerationConfig(llm=CohereLLMConfig()),
         )
         self._assert_python_valid(config)
@@ -1880,7 +1895,7 @@ class TestStrictUndefined:
             name="strict-test",
             framework="langchain",
             indexing=IndexingConfig(
-                chunking=ContextualChunkingConfig(),
+                chunking=RecursiveChunkingConfig(),
                 embedding=JinaEmbeddingConfig(late_chunking=True),
                 vector_db=QdrantConfig(),
             ),
@@ -1943,6 +1958,7 @@ class TestConfigYamlRoundTrip:
             name="rt-2",
             framework="llamaindex",
             indexing=IndexingConfig(embedding=CohereEmbeddingConfig(), vector_db=PineconeConfig()),
+            retrieval=DenseRetrievalConfig(),
             generation=GenerationConfig(llm=CohereLLMConfig()),
         )
         result = self._roundtrip(config)

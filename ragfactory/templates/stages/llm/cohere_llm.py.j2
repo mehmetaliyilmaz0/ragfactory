@@ -11,14 +11,14 @@ from typing import Any
 def build_llm() -> Any:
 {% if framework == "langchain" %}
     return ChatCohere(
-        model="{{ llm.model }}",
+        model={{ llm.model | tojson_py }},
         temperature={{ llm.temperature }},
         max_tokens={{ llm.max_tokens }},
         cohere_api_key=os.environ["COHERE_API_KEY"],
     )
 {% else %}
     return Cohere(
-        model="{{ llm.model }}",
+        model={{ llm.model | tojson_py }},
         temperature={{ llm.temperature }},
         max_tokens={{ llm.max_tokens }},
         api_key=os.environ["COHERE_API_KEY"],
